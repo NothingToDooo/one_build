@@ -201,6 +201,55 @@ install_obsidian_excalidraw_plugin() {
   enable_obsidian_community_plugin "$vault_path" "$plugin_id"
 }
 
+register_obsidian_vault() {
+  local vault_path="$1"
+  local config_dir="$HOME/Library/Application Support/obsidian"
+  local config_path="$config_dir/obsidian.json"
+  local resolved_vault_path
+
+  resolved_vault_path="$(cd "$vault_path" && pwd -P)"
+  mkdir -p "$config_dir"
+
+  OBSIDIAN_CONFIG_PATH="$config_path" OBSIDIAN_VAULT_PATH="$resolved_vault_path" bun -e '
+const fs = require("fs");
+const crypto = require("crypto");
+
+const configPath = process.env.OBSIDIAN_CONFIG_PATH;
+const vaultPath = process.env.OBSIDIAN_VAULT_PATH;
+let config = {};
+
+if (fs.existsSync(configPath)) {
+  try {
+    config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } catch (error) {
+    console.error(`警告：无法读取 Obsidian vault 配置，将保留原文件并跳过自动注册。原因：${error.message}`);
+    process.exit(0);
+  }
+}
+
+if (!config.vaults || typeof config.vaults !== "object") {
+  config.vaults = {};
+}
+
+let vaultId = Object.keys(config.vaults).find((id) => {
+  const entry = config.vaults[id];
+  return entry && typeof entry.path === "string" && entry.path.replace(/\/+$/, "") === vaultPath.replace(/\/+$/, "");
+});
+
+if (!vaultId) {
+  vaultId = crypto.createHash("sha1").update(vaultPath.toLowerCase()).digest("hex").slice(0, 16);
+}
+
+config.vaults[vaultId] = {
+  path: vaultPath,
+  ts: Date.now(),
+  open: true,
+};
+
+fs.writeFileSync(configPath, JSON.stringify(config), "utf8");
+'
+}
+
 choose_vault_folder() {
   log "请选择 Obsidian 仓库目录"
   local selected
@@ -517,13 +566,22 @@ ensure_obsidian_cli() {
 
 open_apps() {
   local vault_path="$1"
+  local index_path="$vault_path/llmwiki/raw/index.md"
   if [[ "$SKIP_OPEN_APPS" -eq 1 ]]; then
     return
   fi
 
   log "正在打开 Codex 和 Obsidian"
   open -a "Codex" || true
-  open -a "Obsidian" "$vault_path" || true
+
+  register_obsidian_vault "$vault_path"
+  if pgrep -x "Obsidian" >/dev/null 2>&1; then
+    log "Obsidian 已在运行，跳过打开"
+  elif [[ -f "$index_path" ]]; then
+    open "obsidian://open?path=$(bun -e 'console.log(encodeURIComponent(process.argv[1]))' "$index_path")" || true
+  else
+    open -a "Obsidian" || true
+  fi
 }
 
 main() {
@@ -536,10 +594,11 @@ main() {
   vault_path="$(choose_vault_folder)"
   install_or_upgrade_codex
   install_or_upgrade_obsidian
-  ensure_obsidian_cli
   deploy_llmwiki_workflow "$vault_path"
-  install_defuddle
   install_obsidian_excalidraw_plugin "$vault_path"
+  register_obsidian_vault "$vault_path"
+  ensure_obsidian_cli
+  install_defuddle
   sync_global_skills "$vault_path"
   open_apps "$vault_path"
   log "完成"

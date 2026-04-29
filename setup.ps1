@@ -869,10 +869,11 @@ try {
     $vaultPath = Select-VaultFolder
     Ensure-CodexApp
     Ensure-ObsidianApp
-    Ensure-ObsidianCli
     Deploy-LlmWikiWorkflow -VaultPath $vaultPath
-    Install-Defuddle
     Install-ObsidianExcalidrawPlugin -VaultPath $vaultPath
+    Register-ObsidianVault -VaultPath $vaultPath
+    Ensure-ObsidianCli
+    Install-Defuddle
     Sync-GlobalSkills -VaultPath $vaultPath
     try {
         Open-InstalledApps -VaultPath $vaultPath
