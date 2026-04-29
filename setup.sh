@@ -595,7 +595,6 @@ main() {
   ensure_bun
   local vault_path
   vault_path="$(choose_vault_folder)"
-  install_or_upgrade_codex
   install_or_upgrade_obsidian
   deploy_llmwiki_workflow "$vault_path"
   install_obsidian_excalidraw_plugin "$vault_path"
@@ -603,6 +602,7 @@ main() {
   ensure_obsidian_cli
   install_defuddle
   sync_global_skills "$vault_path"
+  install_or_upgrade_codex
   open_apps "$vault_path"
   log "完成"
 }

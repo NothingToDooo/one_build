@@ -870,7 +870,6 @@ try {
     Ensure-Winget
     Ensure-Bun
     $vaultPath = Select-VaultFolder
-    Ensure-CodexApp
     Ensure-ObsidianApp
     Deploy-LlmWikiWorkflow -VaultPath $vaultPath
     Install-ObsidianExcalidrawPlugin -VaultPath $vaultPath
@@ -878,6 +877,7 @@ try {
     Ensure-ObsidianCli
     Install-Defuddle
     Sync-GlobalSkills -VaultPath $vaultPath
+    Ensure-CodexApp
     try {
         Open-InstalledApps -VaultPath $vaultPath
     }
