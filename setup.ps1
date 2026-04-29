@@ -203,26 +203,7 @@ function Select-VaultFolder {
     return (Resolve-Path -LiteralPath $selectedPath).Path
 }
 
-function Test-WingetPackageInstalled {
-    param(
-        [Parameter(Mandatory = $true)][string]$Id,
-        [string]$Source
-    )
-
-    if ($Source -eq "msstore") {
-        $args = @("list", $Id, "--source", $Source, "--accept-source-agreements")
-    }
-    else {
-        $args = @("list", "--id", $Id, "--accept-source-agreements")
-    }
-    if ($Source -and $Source -ne "msstore") {
-        $args += @("--source", $Source)
-    }
-    $output = (& winget @args 2>$null) -join "`n"
-    return ($output -match [regex]::Escape($Id))
-}
-
-function Install-OrUpgradeWingetPackage {
+function Install-WingetPackage {
     param(
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][string]$Id,
@@ -241,19 +222,31 @@ function Install-OrUpgradeWingetPackage {
         $commonArgs += @("--source", $Source)
     }
 
-    if (Test-WingetPackageInstalled -Id $Id -Source $Source) {
-        if ($UpgradeTools) {
-            Write-Step "$Name 已安装，正在尝试升级"
-            Invoke-LoggedCommand -FilePath "winget" -Arguments (@("upgrade") + $packageArgs + $commonArgs) -AllowFailure | Out-Null
-        }
-        else {
-            Write-Step "$Name 已安装，跳过升级"
-        }
-        return
-    }
-
     Write-Step "正在安装 $Name"
     Invoke-LoggedCommand -FilePath "winget" -Arguments (@("install") + $packageArgs + $commonArgs)
+}
+
+function Upgrade-WingetPackage {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$Id,
+        [string]$Source
+    )
+
+    if ($Source -eq "msstore") {
+        $packageArgs = @($Id)
+    }
+    else {
+        $packageArgs = @("--id", $Id)
+    }
+
+    $commonArgs = @("--accept-source-agreements", "--accept-package-agreements")
+    if ($Source) {
+        $commonArgs += @("--source", $Source)
+    }
+
+    Write-Step "$Name 已安装，正在尝试升级"
+    Invoke-LoggedCommand -FilePath "winget" -Arguments (@("upgrade") + $packageArgs + $commonArgs) -AllowFailure | Out-Null
 }
 
 function Open-MicrosoftStoreProduct {
@@ -272,9 +265,37 @@ function Open-MicrosoftStoreProduct {
     }
 }
 
+function Test-CodexAppInstalled {
+    try {
+        $startApp = Get-StartApps |
+            Where-Object { $_.Name -eq "Codex" -or $_.AppID -match "Codex|9PLM9XGG6VKS|OpenAI\.Codex" } |
+            Select-Object -First 1
+        if ($startApp) {
+            return $true
+        }
+    }
+    catch {
+        Write-Warn "无法通过开始菜单检测 Codex。原因：$($_.Exception.Message)"
+    }
+
+    try {
+        $appx = Get-AppxPackage -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match "Codex|OpenAI" -or $_.PackageFamilyName -match "Codex|OpenAI" } |
+            Select-Object -First 1
+        if ($appx) {
+            return $true
+        }
+    }
+    catch {
+        Write-Warn "无法通过 Appx 检测 Codex。原因：$($_.Exception.Message)"
+    }
+
+    return $false
+}
+
 function Ensure-CodexApp {
     $productId = "9PLM9XGG6VKS"
-    if (Test-WingetPackageInstalled -Id $productId -Source "msstore") {
+    if (Test-CodexAppInstalled) {
         if ($UpgradeTools) {
             Write-Step "Codex 应用已安装，正在打开 Microsoft Store 检查更新"
             Open-MicrosoftStoreProduct -Name "Codex 应用" -ProductId $productId
@@ -288,6 +309,54 @@ function Ensure-CodexApp {
     Write-Step "Codex 应用未安装，将由 Microsoft Store 负责下载"
     Open-MicrosoftStoreProduct -Name "Codex 应用" -ProductId $productId
     Write-Warn "请在 Microsoft Store 中点击安装 Codex。脚本会继续配置 Obsidian 和 LLM Wiki；如果 Codex 尚未下载完成，最后请从开始菜单手动打开。"
+}
+
+function Find-ObsidianExe {
+    $command = Get-Command "Obsidian.exe" -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+
+    $candidates = @(
+        (Join-Path $env:LOCALAPPDATA "Programs\Obsidian\Obsidian.exe"),
+        (Join-Path $env:ProgramFiles "Obsidian\Obsidian.exe")
+    )
+    if (${env:ProgramFiles(x86)}) {
+        $candidates += (Join-Path ${env:ProgramFiles(x86)} "Obsidian\Obsidian.exe")
+    }
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+function Ensure-ObsidianApp {
+    Refresh-Path
+    $obsidianExe = Find-ObsidianExe
+    if ($obsidianExe) {
+        Add-UserPath -Path (Split-Path -Parent $obsidianExe)
+        if ($UpgradeTools) {
+            Upgrade-WingetPackage -Name "Obsidian" -Id "Obsidian.Obsidian"
+        }
+        else {
+            Write-Step "Obsidian 已安装，跳过升级"
+        }
+        return
+    }
+
+    Install-WingetPackage -Name "Obsidian" -Id "Obsidian.Obsidian"
+    Refresh-Path
+    $obsidianExe = Find-ObsidianExe
+    if ($obsidianExe) {
+        Add-UserPath -Path (Split-Path -Parent $obsidianExe)
+    }
+    else {
+        Write-Warn "Obsidian 安装命令已执行，但当前 PATH 和常见目录中暂未找到 Obsidian.exe。后续步骤会继续尝试。"
+    }
 }
 
 function Install-BunWithOfficialInstaller {
@@ -313,7 +382,7 @@ function Ensure-Bun {
     }
 
     try {
-        Install-OrUpgradeWingetPackage -Name "Bun" -Id "Oven-sh.Bun"
+        Install-WingetPackage -Name "Bun" -Id "Oven-sh.Bun"
     }
     catch {
         Write-Warn "winget 安装 Bun 失败，将改用 Bun 官方安装器。原因：$($_.Exception.Message)"
@@ -717,7 +786,7 @@ try {
     Ensure-Bun
     $vaultPath = Select-VaultFolder
     Ensure-CodexApp
-    Install-OrUpgradeWingetPackage -Name "Obsidian" -Id "Obsidian.Obsidian"
+    Ensure-ObsidianApp
     Ensure-ObsidianCli
     Deploy-LlmWikiWorkflow -VaultPath $vaultPath
     Install-Defuddle
