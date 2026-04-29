@@ -7,6 +7,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+$TemplateBaseUrl = "https://raw.githubusercontent.com/NothingToDooo/one_build/main/templates"
 
 function Write-Step {
     param([string]$Message)
@@ -284,6 +285,85 @@ paths:
     Invoke-LoggedCommand -FilePath "llmbase" -Arguments @("--base-dir", $wikiDir, "stats") -AllowFailure | Out-Null
 }
 
+function Save-TemplateIfMissing {
+    param(
+        [Parameter(Mandatory = $true)][string]$Url,
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    if (Test-Path -LiteralPath $Path) {
+        Write-Step "模板已存在，跳过：$Path"
+        return
+    }
+
+    Write-Step "正在写入模板：$Path"
+    Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $Path
+}
+
+function Ensure-RootAgentsFile {
+    param([Parameter(Mandatory = $true)][string]$VaultPath)
+
+    $rootAgents = Join-Path $VaultPath "AGENTS.md"
+    $section = @"
+
+## Codex LLM Wiki
+
+这个 Obsidian 仓库包含一套 Codex LLM Wiki 工作流，位置是 `llmwiki/`。
+
+使用或维护这套知识库前，先阅读：
+
+- `llmwiki/AGENTS.md`
+- `llmwiki/SCHEMA.md`
+- `llmwiki/index.md`
+- `llmwiki/log.md`
+
+除非用户明确要求，不要修改 `llmwiki/` 外的用户笔记。
+"@
+
+    if (Test-Path -LiteralPath $rootAgents) {
+        $existing = Get-Content -LiteralPath $rootAgents -Raw
+        if ($existing -match "llmwiki/AGENTS\.md") {
+            Write-Step "根目录 AGENTS.md 已包含 LLM Wiki 指引，跳过"
+            return
+        }
+        Write-Step "正在补充根目录 AGENTS.md"
+        Add-Content -LiteralPath $rootAgents -Value $section -Encoding UTF8
+        return
+    }
+
+    Write-Step "正在创建根目录 AGENTS.md"
+    @"
+# Codex 仓库指引
+$section
+"@ | Set-Content -LiteralPath $rootAgents -Encoding UTF8
+}
+
+function Deploy-LlmWikiWorkflow {
+    param([Parameter(Mandatory = $true)][string]$VaultPath)
+
+    Write-Step "正在部署 Codex LLM Wiki 工作流"
+    $wikiDir = Join-Path $VaultPath "llmwiki"
+    $directories = @(
+        $wikiDir,
+        (Join-Path $wikiDir "raw\articles"),
+        (Join-Path $wikiDir "raw\papers"),
+        (Join-Path $wikiDir "raw\transcripts"),
+        (Join-Path $wikiDir "raw\assets"),
+        (Join-Path $wikiDir "entities"),
+        (Join-Path $wikiDir "concepts"),
+        (Join-Path $wikiDir "comparisons"),
+        (Join-Path $wikiDir "queries"),
+        (Join-Path $wikiDir "_archive")
+    )
+    New-Item -ItemType Directory -Force -Path $directories | Out-Null
+
+    foreach ($name in @("AGENTS.md", "SCHEMA.md", "index.md", "log.md")) {
+        Save-TemplateIfMissing -Url "$TemplateBaseUrl/$name" -Path (Join-Path $wikiDir $name)
+    }
+
+    Ensure-RootAgentsFile -VaultPath $VaultPath
+}
+
 function Find-ObsidianCli {
     $command = Get-Command "obsidian" -ErrorAction SilentlyContinue
     if ($command) {
@@ -421,6 +501,7 @@ try {
     Install-OrUpgradeWingetPackage -Name "Obsidian" -Id "Obsidian.Obsidian"
     Ensure-ObsidianCli
     Install-LlmWiki -VaultPath $vaultPath
+    Deploy-LlmWikiWorkflow -VaultPath $vaultPath
     try {
         Open-InstalledApps -VaultPath $vaultPath
     }

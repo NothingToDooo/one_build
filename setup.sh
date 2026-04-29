@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SKIP_OPEN_APPS=0
+TEMPLATE_BASE_URL="https://raw.githubusercontent.com/NothingToDooo/one_build/main/templates"
 
 for arg in "$@"; do
   case "$arg" in
@@ -206,6 +207,90 @@ EOF
   llmbase --base-dir "$wiki_dir" stats || warn "llmbase stats 失败；请稍后检查配置和权限。"
 }
 
+download_template_if_missing() {
+  local url="$1"
+  local path="$2"
+
+  if [[ -f "$path" ]]; then
+    log "模板已存在，跳过：$path"
+    return
+  fi
+
+  log "正在写入模板：$path"
+  curl -fsSL "$url" -o "$path"
+}
+
+ensure_root_agents_file() {
+  local vault_path="$1"
+  local root_agents="$vault_path/AGENTS.md"
+
+  if [[ -f "$root_agents" ]] && grep -q 'llmwiki/AGENTS\.md' "$root_agents"; then
+    log "根目录 AGENTS.md 已包含 LLM Wiki 指引，跳过"
+    return
+  fi
+
+  if [[ -f "$root_agents" ]]; then
+    log "正在补充根目录 AGENTS.md"
+    cat >> "$root_agents" <<'EOF'
+
+## Codex LLM Wiki
+
+这个 Obsidian 仓库包含一套 Codex LLM Wiki 工作流，位置是 `llmwiki/`。
+
+使用或维护这套知识库前，先阅读：
+
+- `llmwiki/AGENTS.md`
+- `llmwiki/SCHEMA.md`
+- `llmwiki/index.md`
+- `llmwiki/log.md`
+
+除非用户明确要求，不要修改 `llmwiki/` 外的用户笔记。
+EOF
+    return
+  fi
+
+  log "正在创建根目录 AGENTS.md"
+  cat > "$root_agents" <<'EOF'
+# Codex 仓库指引
+
+## Codex LLM Wiki
+
+这个 Obsidian 仓库包含一套 Codex LLM Wiki 工作流，位置是 `llmwiki/`。
+
+使用或维护这套知识库前，先阅读：
+
+- `llmwiki/AGENTS.md`
+- `llmwiki/SCHEMA.md`
+- `llmwiki/index.md`
+- `llmwiki/log.md`
+
+除非用户明确要求，不要修改 `llmwiki/` 外的用户笔记。
+EOF
+}
+
+deploy_llmwiki_workflow() {
+  local vault_path="$1"
+  local wiki_dir="$vault_path/llmwiki"
+
+  log "正在部署 Codex LLM Wiki 工作流"
+  mkdir -p \
+    "$wiki_dir/raw/articles" \
+    "$wiki_dir/raw/papers" \
+    "$wiki_dir/raw/transcripts" \
+    "$wiki_dir/raw/assets" \
+    "$wiki_dir/entities" \
+    "$wiki_dir/concepts" \
+    "$wiki_dir/comparisons" \
+    "$wiki_dir/queries" \
+    "$wiki_dir/_archive"
+
+  download_template_if_missing "$TEMPLATE_BASE_URL/AGENTS.md" "$wiki_dir/AGENTS.md"
+  download_template_if_missing "$TEMPLATE_BASE_URL/SCHEMA.md" "$wiki_dir/SCHEMA.md"
+  download_template_if_missing "$TEMPLATE_BASE_URL/index.md" "$wiki_dir/index.md"
+  download_template_if_missing "$TEMPLATE_BASE_URL/log.md" "$wiki_dir/log.md"
+  ensure_root_agents_file "$vault_path"
+}
+
 ensure_obsidian_cli() {
   log "正在配置 Obsidian CLI"
   local cli_path="/usr/local/bin/obsidian"
@@ -255,6 +340,7 @@ main() {
   install_or_upgrade_obsidian
   ensure_obsidian_cli
   install_llmwiki "$vault_path"
+  deploy_llmwiki_workflow "$vault_path"
   open_apps "$vault_path"
   log "完成"
 }
