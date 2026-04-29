@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$SkipOpenApps
+    [switch]$SkipOpenApps,
+    [switch]$NoPause
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,6 +41,9 @@ function Restart-Elevated {
     )
     if ($SkipOpenApps) {
         $arguments += "-SkipOpenApps"
+    }
+    if ($NoPause) {
+        $arguments += "-NoPause"
     }
 
     Start-Process -FilePath "powershell.exe" -ArgumentList $arguments -Verb RunAs
@@ -237,6 +241,7 @@ function Open-InstalledApps {
 Restart-Elevated
 
 $logPath = Join-Path $env:TEMP "one-build-setup.log"
+$success = $false
 try {
     Start-Transcript -Path $logPath -Append | Out-Null
 }
@@ -252,12 +257,30 @@ try {
     Install-OrUpgradeWingetPackage -Name "Obsidian" -Id "Obsidian.Obsidian"
     Install-LlmWiki -VaultPath $vaultPath
     Open-InstalledApps -VaultPath $vaultPath
+    $success = $true
     Write-Step "完成。日志文件：$logPath"
+}
+catch {
+    Write-Host ""
+    Write-Host "安装失败：" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Host ""
+    Write-Host "日志文件：$logPath" -ForegroundColor Yellow
+    Write-Host "请把上面的错误信息或日志内容发给维护者。" -ForegroundColor Yellow
+    exit 1
 }
 finally {
     try {
         Stop-Transcript | Out-Null
     }
     catch {
+    }
+    if (-not $NoPause) {
+        if ($success) {
+            Read-Host "已完成，按回车关闭窗口"
+        }
+        else {
+            Read-Host "按回车关闭窗口"
+        }
     }
 }
