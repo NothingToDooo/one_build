@@ -166,8 +166,15 @@ function Select-VaultFolder {
         exit 0
     }
 
-    New-Item -ItemType Directory -Force -Path $dialog.SelectedPath | Out-Null
-    return (Resolve-Path -LiteralPath $dialog.SelectedPath).Path
+    $selectedPath = (Resolve-Path -LiteralPath $dialog.SelectedPath).Path
+    $rootPath = [System.IO.Path]::GetPathRoot($selectedPath)
+    if ($selectedPath.TrimEnd("\") -ieq $rootPath.TrimEnd("\")) {
+        $selectedPath = Join-Path $selectedPath "codexWiki"
+        Write-Step "选择的是磁盘根目录，将使用默认仓库目录：$selectedPath"
+    }
+
+    New-Item -ItemType Directory -Force -Path $selectedPath | Out-Null
+    return (Resolve-Path -LiteralPath $selectedPath).Path
 }
 
 function Test-WingetPackageInstalled {

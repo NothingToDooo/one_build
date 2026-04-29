@@ -62,6 +62,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - 安装或复用 Obsidian。
 - 尝试配置并验证 Obsidian CLI；不可用时安装继续，后续 agent 优先直接编辑文件。
 - 要求用户通过 GUI 选择 Obsidian 仓库目录。
+- 如果用户选择的是磁盘或卷的根目录，脚本会自动在其中创建并使用 `codexWiki` 文件夹。
 - 在用户选择的仓库中创建或复用 `llmwiki/`。
 - 部署 Codex LLM Wiki 工作流模板。
 - 在用户选择的 vault 内安装并启用 Excalidraw 社区插件，供 `excalidraw-diagram` skill 使用。

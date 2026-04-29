@@ -171,9 +171,15 @@ install_obsidian_excalidraw_plugin() {
 choose_vault_folder() {
   log "请选择 Obsidian 仓库目录"
   local selected
+  local normalized
   if ! selected="$(osascript -e 'POSIX path of (choose folder with prompt "请选择或创建用于 LLM Wiki 的 Obsidian 仓库目录")')" ; then
     warn "未选择仓库目录。脚本退出，不会修改 LLM Wiki。"
     exit 0
+  fi
+  normalized="${selected%/}"
+  if [[ "$normalized" == "/" || "$normalized" == "/Volumes/"* && "${normalized#"/Volumes/"}" != */* ]]; then
+    selected="$normalized/codexWiki"
+    log "选择的是磁盘根目录，将使用默认仓库目录：$selected"
   fi
   mkdir -p "$selected"
   printf '%s\n' "$selected"
