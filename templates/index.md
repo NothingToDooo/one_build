@@ -3,12 +3,12 @@
 > 内容目录。导入、查询或整理前先读这里。
 > 最后更新：YYYY-MM-DD | 页面总数：0
 
-## Entities
+## 实体
 
-## Concepts
+## 概念
 
-## Comparisons
+## 对比
 
-## Queries
+## 问答
 
-## Summaries
+## 总结

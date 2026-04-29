@@ -67,7 +67,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - 部署 Codex LLM Wiki 工作流模板。
 - 在用户选择的 vault 内安装并启用 Excalidraw 社区插件，供 `excalidraw-diagram` skill 使用。
 - 同步常用 Obsidian/Codex skills 到用户全局目录 `~/.agents/skills`。
-- 创建或补充仓库根目录 `AGENTS.md`，让 Codex 打开整个 vault 时也能发现 `llmwiki/AGENTS.md`。
+- 创建或补充仓库根目录 `AGENTS.md`，让 Codex 打开整个 vault 时也能发现 `llmwiki/raw/AGENTS.md`。
 
 ## 部署后的结构
 
@@ -75,11 +75,17 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 你的 Obsidian 仓库
 ├── AGENTS.md
 └── llmwiki
-    ├── AGENTS.md
-    ├── SCHEMA.md
-    ├── index.md
-    ├── log.md
+    ├── 实体
+    ├── 概念
+    ├── 对比
+    ├── 问答
+    ├── 总结
     ├── raw
+    │   ├── AGENTS.md
+    │   ├── SCHEMA.md
+    │   ├── index.md
+    │   ├── log.md
+    │   ├── _archive
     │   ├── articles
     │   ├── papers
     │   ├── transcripts
@@ -88,35 +94,29 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
     │   ├── slides
     │   ├── images
     │   └── assets
-    ├── entities
-    ├── concepts
-    ├── comparisons
-    ├── queries
-    ├── summaries
-    └── _archive
 ```
 
-`raw/` 放原始资料和提取 sidecar；`entities/`、`concepts/`、`comparisons/`、`queries/`、`summaries/` 是 Codex 维护的 wiki 页面。`AGENTS.md` 和 `SCHEMA.md` 包含导入、重新导入、批量处理、审计、归档和日志轮转规则。脚本不会覆盖已有模板文件，也不会删除用户已有 Markdown。
+`实体/`、`概念/`、`对比/`、`问答/`、`总结/` 是用户直接阅读的 wiki 页面；`raw/` 放原始资料、提取 sidecar、规则文件、索引和日志。`raw/AGENTS.md` 和 `raw/SCHEMA.md` 包含导入、重新导入、批量处理、审计、归档和日志轮转规则。脚本不会覆盖已有模板文件，也不会删除用户已有 Markdown。
 
 ## 给 Codex 的使用方式
 
 在 Codex 中打开用户选择的 Obsidian 仓库目录，然后直接提出任务，例如：
 
 ```text
-请按 llmwiki/AGENTS.md 的规则，把 D:\资料 里的文档导入这个知识库，抽取实体和概念，更新 index.md 和 log.md。
+请按 llmwiki/raw/AGENTS.md 的规则，把 D:\资料 里的文档导入这个知识库，抽取实体和概念，更新 raw/index.md 和 raw/log.md。
 ```
 
 ```text
 请基于 llmwiki 回答“这些资料里反复出现的核心主张是什么”，答案要链接到相关 wiki 页面和原始资料。
 ```
 
-Codex 会先读取根目录 `AGENTS.md`，再进入 `llmwiki/AGENTS.md`、`SCHEMA.md`、`index.md` 和 `log.md` 执行工作流。
+Codex 会先读取根目录 `AGENTS.md`，再进入 `llmwiki/raw/AGENTS.md`、`SCHEMA.md`、`index.md` 和 `log.md` 执行工作流。
 
 ## 同步的全局 skills
 
 脚本会安装或更新这些 skill 到 `~/.agents/skills`：
 
-- `llm-wiki`：安装时生成的入口 skill，只记录用户选择的 vault 路径，并指引 Codex 读取 `llmwiki/AGENTS.md`。
+- `llm-wiki`：安装时生成的入口 skill，只记录用户选择的 vault 路径，并指引 Codex 读取 `llmwiki/raw/AGENTS.md`。
 - `defuddle`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/defuddle)，脚本会把安装提示改为 `bun install -g defuddle`。
 - `obsidian-bases`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-bases)。
 - `obsidian-cli`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-cli)。

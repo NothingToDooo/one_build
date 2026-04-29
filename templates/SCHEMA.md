@@ -19,8 +19,8 @@
 - `raw/` 原始资料、提取 sidecar 和工具产物可以保留来源文件名，或使用稳定的英文 slug。
 - wiki 页面使用 YAML frontmatter。
 - 相关页面之间使用 `[[wikilinks]]`。
-- 每个新增 wiki 页面必须登记到 `index.md`。
-- 每次导入、查询、整理、创建、归档或重要更新，都必须追加到 `log.md`。
+- 每个新增 wiki 页面必须登记到 `raw/index.md`。
+- 每次导入、查询、整理、创建、归档或重要更新，都必须追加到 `raw/log.md`。
 - 优先写有来源支撑的结论，不要把无来源猜测写成事实。
 - 综合多个来源时，可以在段落后使用来源标记，例如 `^[raw/articles/source.md]`。
 - 更新页面时必须更新 `updated` 日期。
@@ -84,15 +84,18 @@ status: raw | extracted | profiled | needs-ocr | failed
 
 ## 文件命名
 
-- 用户会直接阅读的 `entities/`、`concepts/`、`comparisons/`、`queries/`、`summaries/` 页面优先使用中文文件名。
+- 用户会直接阅读的 `实体/`、`概念/`、`对比/`、`问答/`、`总结/` 页面优先使用中文文件名。
 - 网页：`raw/articles/title-or-domain-YYYY.md`
 - PDF：`raw/papers/title-or-report-name.pdf` 和 `raw/papers/title-or-report-name.extracted.md`
 - Word：`raw/documents/title.docx` 和 `raw/documents/title.extracted.md`
 - 表格：`raw/tables/title.xlsx` 和 `raw/tables/title.profile.md`
 - 幻灯片：`raw/slides/title.pptx` 和 `raw/slides/title.extracted.md`
 - 图片：`raw/images/title.png` 和 `raw/images/title.ocr.md`
-- 查询：`queries/用户问题摘要.md`
-- 综合总结：`summaries/主题或阶段总结.md`
+- 实体：`实体/实体名称.md`
+- 概念：`概念/概念名称.md`
+- 对比：`对比/比较主题.md`
+- 查询：`问答/用户问题摘要.md`
+- 综合总结：`总结/主题或阶段总结.md`
 
 重名时添加短日期或序号，不要覆盖已有文件。
 
@@ -123,9 +126,9 @@ status: raw | extracted | profiled | needs-ocr | failed
 - 某一实体或概念虽然只出现在一个来源，但对知识库主题很关键，也可以建页。
 - 能更新既有页面时，不要创建重复页面。
 - 不要为路过式提及、脚注式名字、无关背景信息创建页面。
-- 只有复杂、以后可能复用、重新推导成本较高的回答才保存到 `queries/`。
-- 横向比较、选型、差异分析优先放到 `comparisons/`。
-- 跨多个来源、多个主题或一段时间的综合结论优先放到 `summaries/`。
+- 只有复杂、以后可能复用、重新推导成本较高的回答才保存到 `问答/`。
+- 横向比较、选型、差异分析优先放到 `对比/`。
+- 跨多个来源、多个主题或一段时间的综合结论优先放到 `总结/`。
 
 ## Entity 页面
 
@@ -217,19 +220,19 @@ Summary 页面保存跨来源、跨主题或阶段性的综合总结。
 4. 把页面 frontmatter 中的 `contested` 改为 `true`。
 5. 必要时在 `contradictions` 中登记相关页面。
 6. 在正文中说明冲突点、各自来源和待确认问题。
-7. 在 `log.md` 追加更新记录。
+7. 在 `raw/log.md` 追加更新记录。
 
-## index.md 规则
+## raw/index.md 规则
 
-`index.md` 按页面类型分区。每个条目一行，包含 wikilink 和一句摘要。
+`raw/index.md` 按页面类型分区。每个条目一行，包含 wikilink 和一句摘要。
 
 当某个分区超过 50 条时，按首字母、主题或子领域拆分小节。
 
-当总页面超过 200 条时，创建 `_meta/topic-map.md`，按主题组织入口。
+当总页面超过 200 条时，创建 `raw/_meta/topic-map.md`，按主题组织入口。
 
-## log.md 规则
+## raw/log.md 规则
 
-`log.md` 是追加式记录，格式：
+`raw/log.md` 是追加式记录，格式：
 
 ```markdown
 ## [YYYY-MM-DD] action | subject
@@ -249,4 +252,4 @@ Summary 页面保存跨来源、跨主题或阶段性的综合总结。
 
 每条记录列出本次创建、修改、跳过、失败和需要用户判断的文件。
 
-超过 500 条记录时，把旧日志轮转为 `log-YYYY.md`，再新建 `log.md`。
+超过 500 条记录时，把旧日志轮转为 `raw/log-YYYY.md`，再新建 `raw/log.md`。
