@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SKIP_OPEN_APPS=0
+UPGRADE_TOOLS=0
 REPO_ARCHIVE_URL="https://codeload.github.com/NothingToDooo/one_build/zip/refs/heads/main"
 ONE_BUILD_REPO_ROOT=""
 
@@ -10,11 +11,14 @@ for arg in "$@"; do
     --skip-open-apps)
       SKIP_OPEN_APPS=1
       ;;
+    --upgrade-tools)
+      UPGRADE_TOOLS=1
+      ;;
     -h|--help)
       cat <<'EOF'
-用法：bash ./setup.sh [--skip-open-apps]
+用法：bash ./setup.sh [--skip-open-apps] [--upgrade-tools]
 
-安装或升级 Codex 应用、Obsidian、bun、defuddle 和 LLM Wiki 工作流模板。
+安装或复用 Codex 应用、Obsidian、bun、defuddle 和 LLM Wiki 工作流模板。
 Obsidian 仓库目录会通过 macOS 文件夹选择器指定。
 EOF
       exit 0
@@ -134,12 +138,16 @@ ensure_bun() {
 
 install_defuddle() {
   refresh_path
-  if command -v defuddle >/dev/null 2>&1; then
+  if command -v defuddle >/dev/null 2>&1 && [[ "$UPGRADE_TOOLS" -eq 0 ]]; then
     log "defuddle 已安装，跳过升级"
     return
   fi
 
-  log "正在通过 bun 安装 defuddle"
+  if command -v defuddle >/dev/null 2>&1; then
+    log "defuddle 已安装，正在通过 bun 升级"
+  else
+    log "正在通过 bun 安装 defuddle"
+  fi
   if ! run_with_timeout 600 bun install -g defuddle; then
     warn "defuddle 安装失败，将使用临时 cache 重试。"
     local retry_cache
@@ -184,13 +192,17 @@ install_obsidian_excalidraw_plugin() {
   local plugin_id="obsidian-excalidraw-plugin"
   local plugin_dir="$vault_path/.obsidian/plugins/$plugin_id"
 
-  if [[ -f "$plugin_dir/manifest.json" ]]; then
+  if [[ -f "$plugin_dir/manifest.json" && "$UPGRADE_TOOLS" -eq 0 ]]; then
     log "Obsidian Excalidraw 插件已安装，跳过更新"
     enable_obsidian_community_plugin "$vault_path" "$plugin_id"
     return
   fi
 
-  log "正在安装 Obsidian Excalidraw 插件"
+  if [[ -f "$plugin_dir/manifest.json" ]]; then
+    log "正在更新 Obsidian Excalidraw 插件"
+  else
+    log "正在安装 Obsidian Excalidraw 插件"
+  fi
   mkdir -p "$plugin_dir"
   log "正在下载 Excalidraw 插件文件：main.js"
   curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/main.js" -o "$plugin_dir/main.js"
@@ -334,7 +346,12 @@ install_or_upgrade_codex() {
   esac
 
   if [[ -d "/Applications/Codex.app" ]]; then
-    log "Codex 已安装，正在升级到官方最新 $arch 构建"
+    if [[ "$UPGRADE_TOOLS" -eq 1 ]]; then
+      log "Codex 已安装，正在升级到官方最新 $arch 构建"
+    else
+      log "Codex 已安装，跳过"
+      return
+    fi
   else
     log "Codex 未安装，正在安装官方 $arch 构建"
   fi
@@ -345,8 +362,12 @@ install_or_upgrade_codex() {
 install_or_upgrade_obsidian() {
   if command -v brew >/dev/null 2>&1; then
     if [[ -d "/Applications/Obsidian.app" ]]; then
-      log "Obsidian 已安装，正在通过 Homebrew 升级"
-      brew upgrade --cask obsidian || brew install --cask obsidian
+      if [[ "$UPGRADE_TOOLS" -eq 1 ]]; then
+        log "Obsidian 已安装，正在通过 Homebrew 升级"
+        brew upgrade --cask obsidian || brew install --cask obsidian
+      else
+        log "Obsidian 已安装，跳过升级"
+      fi
     else
       log "正在通过 Homebrew 安装 Obsidian"
       brew install --cask obsidian
@@ -355,7 +376,12 @@ install_or_upgrade_obsidian() {
   fi
 
   if [[ -d "/Applications/Obsidian.app" ]]; then
-    log "Obsidian 已安装，正在通过官方 dmg 升级"
+    if [[ "$UPGRADE_TOOLS" -eq 1 ]]; then
+      log "Obsidian 已安装，正在通过官方 dmg 升级"
+    else
+      log "Obsidian 已安装，跳过升级"
+      return
+    fi
   else
     log "Obsidian 未安装，正在安装官方 dmg"
   fi

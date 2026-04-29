@@ -52,6 +52,12 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="$(mktemp)"; curl -fsSL "$u" -o "$f"; bash "$f" --skip-open-apps
 ```
 
+强制升级已安装工具：
+
+```bash
+u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="$(mktemp)"; curl -fsSL "$u" -o "$f"; bash "$f" --upgrade-tools
+```
+
 ## 脚本会做什么
 
 - Windows 自动请求管理员权限。
@@ -59,7 +65,8 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - Windows 检查并补齐 `bun`：优先用 `winget`，失败时自动回退到 Bun 官方 PowerShell 安装器，然后用 `bun install -g defuddle` 安装 `defuddle`。
 - macOS 检查并补齐 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
 - Windows 上未安装 Codex 时打开 Microsoft Store 页面，由商店负责下载；已安装则复用。
-- 安装或复用 Obsidian。
+- macOS 上未安装 Codex 时下载官方对应架构版本；已安装则复用。
+- 安装或复用 Obsidian；已安装时默认跳过升级。
 - 尝试配置并验证 Obsidian CLI；不可用时安装继续，后续 agent 优先直接编辑文件。
 - 要求用户通过 GUI 选择 Obsidian 仓库目录。
 - 如果用户选择的是磁盘或卷的根目录，脚本会自动在其中创建并使用 `codexWiki` 文件夹。
@@ -67,6 +74,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - 部署 Codex LLM Wiki 工作流模板。
 - 在用户选择的 vault 内安装并启用 Excalidraw 社区插件，供 `excalidraw-diagram` skill 使用。
 - 同步常用 Obsidian/Codex skills 到用户全局目录 `~/.agents/skills`。
+- Windows 使用 `-UpgradeTools`、macOS 使用 `--upgrade-tools` 时，才尝试升级已安装工具。
 
 ## 部署后的结构
 
