@@ -276,8 +276,25 @@ function Open-InstalledApps {
     }
 
     Write-Step "正在打开 Codex 和 Obsidian"
-    Start-Process "shell:AppsFolder\9PLM9XGG6VKS!App" -ErrorAction SilentlyContinue
-    Start-Process "obsidian://open?path=$([uri]::EscapeDataString($VaultPath))" -ErrorAction SilentlyContinue
+    try {
+        Start-Process "ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS" -ErrorAction Stop
+    }
+    catch {
+        Write-Warn "无法自动打开 Codex。请从开始菜单手动打开 Codex。原因：$($_.Exception.Message)"
+    }
+
+    try {
+        Start-Process "obsidian://open?path=$([uri]::EscapeDataString($VaultPath))" -ErrorAction Stop
+    }
+    catch {
+        try {
+            $obsidian = Get-Command "Obsidian.exe" -ErrorAction Stop
+            Start-Process -FilePath $obsidian.Source -ArgumentList "`"$VaultPath`"" -ErrorAction Stop
+        }
+        catch {
+            Write-Warn "无法自动打开 Obsidian。请手动打开 Obsidian 并选择仓库：$VaultPath。原因：$($_.Exception.Message)"
+        }
+    }
 }
 
 Restart-Elevated
