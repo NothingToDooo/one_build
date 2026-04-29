@@ -359,6 +359,75 @@ function Ensure-ObsidianApp {
     }
 }
 
+function Get-ObsidianVaultId {
+    param([Parameter(Mandatory = $true)][string]$VaultPath)
+
+    $normalized = (Resolve-Path -LiteralPath $VaultPath).Path.TrimEnd("\").ToLowerInvariant()
+    $sha1 = [System.Security.Cryptography.SHA1]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($normalized)
+        $hash = $sha1.ComputeHash($bytes)
+        return (($hash | ForEach-Object { $_.ToString("x2") }) -join "").Substring(0, 16)
+    }
+    finally {
+        $sha1.Dispose()
+    }
+}
+
+function Register-ObsidianVault {
+    param([Parameter(Mandatory = $true)][string]$VaultPath)
+
+    $obsidianDir = Join-Path $env:APPDATA "Obsidian"
+    $configPath = Join-Path $obsidianDir "obsidian.json"
+    New-Item -ItemType Directory -Force -Path $obsidianDir | Out-Null
+
+    $config = [ordered]@{}
+    if (Test-Path -LiteralPath $configPath) {
+        try {
+            $existing = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+            foreach ($property in $existing.PSObject.Properties) {
+                $config[$property.Name] = $property.Value
+            }
+        }
+        catch {
+            Write-Warn "无法读取 Obsidian vault 配置，将保留原文件并跳过自动注册。原因：$($_.Exception.Message)"
+            return
+        }
+    }
+
+    if (-not $config.Contains("vaults") -or -not $config["vaults"]) {
+        $config["vaults"] = [pscustomobject]@{}
+    }
+
+    $vaults = $config["vaults"]
+    $resolvedVaultPath = (Resolve-Path -LiteralPath $VaultPath).Path
+    $vaultId = $null
+    foreach ($property in $vaults.PSObject.Properties) {
+        if ($property.Value.path -and ($property.Value.path.TrimEnd("\") -ieq $resolvedVaultPath.TrimEnd("\"))) {
+            $vaultId = $property.Name
+            break
+        }
+    }
+    if (-not $vaultId) {
+        $vaultId = Get-ObsidianVaultId -VaultPath $resolvedVaultPath
+    }
+    $timestamp = [int64]([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())
+    $vaultEntry = [pscustomobject]@{
+        path = $resolvedVaultPath
+        ts = $timestamp
+        open = $true
+    }
+
+    if ($vaults.PSObject.Properties.Name -contains $vaultId) {
+        $vaults.$vaultId = $vaultEntry
+    }
+    else {
+        $vaults | Add-Member -NotePropertyName $vaultId -NotePropertyValue $vaultEntry -Force
+    }
+
+    $config | ConvertTo-Json -Depth 10 -Compress | Set-Content -LiteralPath $configPath -Encoding UTF8
+}
+
 function Install-BunWithOfficialInstaller {
     Write-Step "正在使用 Bun 官方安装器安装 Bun"
     $installerPath = Join-Path $env:TEMP "one-build-bun-install.ps1"
@@ -756,17 +825,30 @@ function Open-InstalledApps {
     }
 
     Refresh-Path
+    Register-ObsidianVault -VaultPath $VaultPath
     try {
-        $obsidian = Get-Command "Obsidian.exe" -ErrorAction Stop
-        Start-Process -FilePath $obsidian.Source -ArgumentList "`"$VaultPath`"" -ErrorAction Stop
+        $obsidianRunning = Get-Process -Name "Obsidian" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($obsidianRunning) {
+            Write-Step "Obsidian 已在运行，跳过打开"
+            return
+        }
+
+        $indexPath = Join-Path $VaultPath "llmwiki\raw\index.md"
+        if (Test-Path -LiteralPath $indexPath) {
+            Start-Process "obsidian://open?path=$([uri]::EscapeDataString((Resolve-Path -LiteralPath $indexPath).Path))" -ErrorAction Stop
+            return
+        }
+
+        $obsidianExe = Find-ObsidianExe
+        if ($obsidianExe) {
+            Start-Process -FilePath $obsidianExe -ErrorAction Stop
+            return
+        }
+
+        Start-Process "obsidian://" -ErrorAction Stop
     }
     catch {
-        try {
-            Start-Process "obsidian://open?vault=$([uri]::EscapeDataString($VaultPath))" -ErrorAction Stop
-        }
-        catch {
-            Write-Warn "无法自动打开 Obsidian。请手动打开 Obsidian 并选择仓库：$VaultPath。原因：$($_.Exception.Message)"
-        }
+        Write-Warn "无法自动打开 Obsidian。请手动打开 Obsidian 并选择仓库：$VaultPath。原因：$($_.Exception.Message)"
     }
 }
 
