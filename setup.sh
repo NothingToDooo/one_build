@@ -52,6 +52,36 @@ ensure_command() {
   fi
 }
 
+run_with_timeout() {
+  local seconds="$1"
+  shift
+  local pid
+  local watcher
+  local status
+
+  "$@" &
+  pid="$!"
+  (
+    sleep "$seconds"
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      warn "命令超过 ${seconds} 秒仍未完成，正在停止：$*"
+      kill "$pid" >/dev/null 2>&1 || true
+      sleep 2
+      kill -9 "$pid" >/dev/null 2>&1 || true
+    fi
+  ) &
+  watcher="$!"
+
+  if wait "$pid"; then
+    status=0
+  else
+    status="$?"
+  fi
+  kill "$watcher" >/dev/null 2>&1 || true
+  wait "$watcher" >/dev/null 2>&1 || true
+  return "$status"
+}
+
 ensure_bun() {
   refresh_path
   if command -v bun >/dev/null 2>&1; then
@@ -59,8 +89,17 @@ ensure_bun() {
     return
   fi
 
+  local installer
+  installer="$(mktemp "/tmp/one-build-bun-install.XXXXXX.sh")"
   log "正在使用 Bun 官方安装器安装 bun"
-  curl -fsSL https://bun.sh/install | bash
+  if ! curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error -o "$installer" https://bun.sh/install; then
+    echo "bun 安装器下载失败。请检查网络，稍后重试。" >&2
+    exit 1
+  fi
+  if ! run_with_timeout 600 bash "$installer"; then
+    echo "bun 安装超时或失败。请检查网络后重试，或先手动安装 bun 再重新运行脚本。" >&2
+    exit 1
+  fi
   refresh_path
   if ! command -v bun >/dev/null 2>&1; then
     echo "bun 安装已完成，但当前 PATH 中仍找不到 bun。" >&2
@@ -76,7 +115,10 @@ install_defuddle() {
   fi
 
   log "正在通过 bun 安装 defuddle"
-  bun install -g defuddle
+  if ! run_with_timeout 600 bun install -g defuddle; then
+    echo "defuddle 安装超时或失败。请检查网络后重试。" >&2
+    exit 1
+  fi
   refresh_path
   if ! command -v defuddle >/dev/null 2>&1; then
     echo "defuddle 安装已完成，但当前 PATH 中仍找不到 defuddle。" >&2

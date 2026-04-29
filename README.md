@@ -2,7 +2,7 @@
 
 用于给少量用户一键部署 Codex 应用、Obsidian、`defuddle`，并尝试配置 Obsidian CLI，以及一套 agent 可直接读取的 LLM Wiki 工作流模板。
 
-脚本发布在 GitHub Raw。Windows 用户可以下载并双击 `.bat` 文件启动；macOS 用户复制一条命令执行。
+脚本发布在 GitHub Raw。Windows 用户可以下载并双击 `.bat` 文件启动；macOS 用户可以下载并双击 `.command` 文件启动，或复制一条命令执行。
 
 ## Windows
 
@@ -32,7 +32,15 @@ $u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.ps1"; $
 
 ## macOS
 
-在终端中执行：
+推荐方式：下载 [setup.command](https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.command)，然后双击运行。
+
+如果 macOS 提示文件不能执行，打开终端进入下载目录执行一次：
+
+```bash
+chmod +x ./setup.command
+```
+
+备用方式：在终端中执行：
 
 ```bash
 u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="$(mktemp)"; curl -fsSL "$u" -o "$f"; bash "$f"
