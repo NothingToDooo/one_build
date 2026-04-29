@@ -363,39 +363,6 @@ $section
 "@ | Set-Content -LiteralPath $rootAgents -Encoding UTF8
 }
 
-function Ensure-LlmWikiBulkRule {
-    param([Parameter(Mandatory = $true)][string]$WikiDir)
-
-    $agentsPath = Join-Path $WikiDir "AGENTS.md"
-    if (-not (Test-Path -LiteralPath $agentsPath)) {
-        return
-    }
-
-    $content = Get-Content -LiteralPath $agentsPath -Raw
-    if ($content -match "## 批量资料处理") {
-        return
-    }
-
-    Write-Step "正在补充 LLM Wiki 批量资料处理规则"
-    $rule = @'
-
-## 批量资料处理
-
-当用户要求处理大量文件、整个目录、多个资料包，或资料类型明显混杂时：
-
-1. 先盘点文件清单，按目录或类型分组，例如网页、PDF、Word、表格、幻灯片、会议记录、图片和其他附件。
-2. 设计子代理分工，每个子代理只负责一个清晰边界：一个目录、一类文件，或一批相同格式资料。
-3. 子代理只做提取、摘要、候选实体/概念、来源记录和风险标记，不直接改写彼此负责的文件。
-4. 主代理负责合并子代理结果，去重同义实体和概念，决定是否创建或更新 wiki 页面。
-5. 合并时保留每批资料的来源路径、处理状态和未解决问题。
-6. 最后由主代理统一更新 `index.md` 和 `log.md`。
-
-如果当前运行环境没有子代理能力，就先完成分组和处理计划，再按分组顺序逐批处理；不要在没有盘点的情况下直接把大量文件混在一起总结。
-'@
-
-    Add-Content -LiteralPath $agentsPath -Value $rule -Encoding UTF8
-}
-
 function Deploy-LlmWikiWorkflow {
     param([Parameter(Mandatory = $true)][string]$VaultPath)
 
@@ -406,6 +373,10 @@ function Deploy-LlmWikiWorkflow {
         (Join-Path $wikiDir "raw\articles"),
         (Join-Path $wikiDir "raw\papers"),
         (Join-Path $wikiDir "raw\transcripts"),
+        (Join-Path $wikiDir "raw\tables"),
+        (Join-Path $wikiDir "raw\documents"),
+        (Join-Path $wikiDir "raw\slides"),
+        (Join-Path $wikiDir "raw\images"),
         (Join-Path $wikiDir "raw\assets"),
         (Join-Path $wikiDir "entities"),
         (Join-Path $wikiDir "concepts"),
@@ -419,7 +390,6 @@ function Deploy-LlmWikiWorkflow {
         Save-TemplateIfMissing -Url "$TemplateBaseUrl/$name" -Path (Join-Path $wikiDir $name)
     }
 
-    Ensure-LlmWikiBulkRule -WikiDir $wikiDir
     Ensure-RootAgentsFile -VaultPath $VaultPath
 }
 

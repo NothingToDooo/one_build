@@ -69,6 +69,10 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
     │   ├── articles
     │   ├── papers
     │   ├── transcripts
+    │   ├── tables
+    │   ├── documents
+    │   ├── slides
+    │   ├── images
     │   └── assets
     ├── entities
     ├── concepts
@@ -77,7 +81,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
     └── _archive
 ```
 
-`raw/` 放原始资料；`entities/`、`concepts/`、`comparisons/`、`queries/` 是 Codex 维护的 wiki 页面。脚本不会覆盖已有模板文件，也不会删除用户已有 Markdown。
+`raw/` 放原始资料和提取 sidecar；`entities/`、`concepts/`、`comparisons/`、`queries/` 是 Codex 维护的 wiki 页面。`AGENTS.md` 和 `SCHEMA.md` 包含导入、重新导入、批量处理、审计、归档和日志轮转规则。脚本不会覆盖已有模板文件，也不会删除用户已有 Markdown。
 
 ## 给 Codex 的使用方式
 
