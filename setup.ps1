@@ -724,6 +724,9 @@ function Sync-GlobalSkills {
 
     Install-LlmWikiGlobalSkill -VaultPath $VaultPath
     Write-Step "全局 skills 已同步到：$(Get-GlobalSkillsRoot)"
+    if (Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -ieq "Codex" -or $_.ProcessName -like "OpenAI.Codex*" } | Select-Object -First 1) {
+        Write-Warn "Codex 已在运行。新安装或更新的全局 skills 需要新建会话或重启 Codex 后才会加载。"
+    }
 }
 
 function Find-ObsidianCli {

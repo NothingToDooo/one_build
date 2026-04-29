@@ -536,6 +536,9 @@ sync_global_skills() {
 
   install_llmwiki_global_skill "$vault_path"
   log "全局 skills 已同步到：$(global_skills_root)"
+  if pgrep -x "Codex" >/dev/null 2>&1; then
+    warn "Codex 已在运行。新安装或更新的全局 skills 需要新建会话或重启 Codex 后才会加载。"
+  fi
 }
 
 ensure_obsidian_cli() {
