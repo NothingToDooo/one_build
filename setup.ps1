@@ -8,7 +8,6 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $TemplateBaseUrl = "https://raw.githubusercontent.com/NothingToDooo/one_build/main/templates"
-$OwnSkillBaseUrl = "https://raw.githubusercontent.com/NothingToDooo/one_build/main/skills"
 
 function Write-Step {
     param([string]$Message)
@@ -379,19 +378,9 @@ function Install-ManagedSkillDirectory {
     $skillsRoot = Get-GlobalSkillsRoot
     New-Item -ItemType Directory -Force -Path $skillsRoot | Out-Null
     $targetDir = Join-Path $skillsRoot $Name
-    $markerPath = Join-Path $targetDir ".one-build-source.json"
 
     if (Test-Path -LiteralPath $targetDir) {
-        if (Test-Path -LiteralPath $markerPath) {
-            Remove-Item -LiteralPath $targetDir -Recurse -Force
-        }
-        else {
-            $backupRoot = Join-Path $skillsRoot "_one_build_backups"
-            New-Item -ItemType Directory -Force -Path $backupRoot | Out-Null
-            $backupDir = Join-Path $backupRoot "$Name-$(Get-Date -Format 'yyyyMMddHHmmss')"
-            Write-Warn "全局 skill 已存在且没有 one_build 标记，正在备份到：$backupDir"
-            Move-Item -LiteralPath $targetDir -Destination $backupDir
-        }
+        Remove-Item -LiteralPath $targetDir -Recurse -Force
     }
 
     Copy-Item -LiteralPath $SourceDir -Destination $targetDir -Recurse -Force
@@ -400,20 +389,6 @@ function Install-ManagedSkillDirectory {
         source = $SourceId
         installed_at = (Get-Date).ToString("o")
     } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $targetDir ".one-build-source.json") -Encoding UTF8
-}
-
-function Install-ManagedSkillFile {
-    param(
-        [Parameter(Mandatory = $true)][string]$Name,
-        [Parameter(Mandatory = $true)][string]$SkillUrl,
-        [Parameter(Mandatory = $true)][string]$SourceId
-    )
-
-    $tempDir = Join-Path $env:TEMP "one-build-skill-$Name"
-    Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-    New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
-    Invoke-WebRequest -UseBasicParsing -Uri $SkillUrl -OutFile (Join-Path $tempDir "SKILL.md")
-    Install-ManagedSkillDirectory -Name $Name -SourceDir $tempDir -SourceId $SourceId
 }
 
 function Expand-RepoArchive {
@@ -430,7 +405,48 @@ function Expand-RepoArchive {
     return (Get-ChildItem -LiteralPath $Destination -Directory | Where-Object { $_.Name -like "*-main" } | Select-Object -First 1).FullName
 }
 
+function Install-LlmWikiGlobalSkill {
+    param([Parameter(Mandatory = $true)][string]$VaultPath)
+
+    $tempDir = Join-Path $env:TEMP "one-build-skill-llm-wiki"
+    Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+    $wikiPath = Join-Path $VaultPath "llmwiki"
+    @"
+---
+name: llm-wiki
+description: 定位并进入用户的 Codex LLM Wiki。适用于用户提到 llmwiki、LLM Wiki、知识库、Obsidian wiki，或要求导入资料、查询知识库、整理 wiki 时。
+---
+
+# Codex LLM Wiki 入口
+
+这个全局 skill 只负责定位 wiki 和加载本地规则，不定义具体维护规则。
+
+## 当前安装位置
+
+- Obsidian vault：`$VaultPath`
+- LLM Wiki：`$wikiPath`
+
+## 使用方式
+
+1. 进入 Obsidian vault：`$VaultPath`。
+2. 确认 `llmwiki/AGENTS.md` 存在。
+3. 先读取：
+   - `llmwiki/AGENTS.md`
+   - `llmwiki/SCHEMA.md`
+   - `llmwiki/index.md`
+   - `llmwiki/log.md`
+4. 后续全部按照 `llmwiki/AGENTS.md` 和 `llmwiki/SCHEMA.md` 执行。
+
+如果用户明确指定了另一个 vault，则以用户指定路径为准，并重复读取该 vault 下的 `llmwiki/` 规则文件。
+"@ | Set-Content -LiteralPath (Join-Path $tempDir "SKILL.md") -Encoding UTF8
+
+    Install-ManagedSkillDirectory -Name "llm-wiki" -SourceDir $tempDir -SourceId "generated-by-one_build:$wikiPath"
+}
+
 function Sync-GlobalSkills {
+    param([Parameter(Mandatory = $true)][string]$VaultPath)
+
     Write-Step "正在同步 Codex 全局 skills"
     $tempRoot = Join-Path $env:TEMP "one-build-skills"
     Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
@@ -446,7 +462,7 @@ function Sync-GlobalSkills {
         Install-ManagedSkillDirectory -Name $name -SourceDir (Join-Path $visualRoot $name) -SourceId "https://github.com/axtonliu/axton-obsidian-visual-skills/tree/main/$name"
     }
 
-    Install-ManagedSkillFile -Name "llm-wiki" -SkillUrl "$OwnSkillBaseUrl/llm-wiki/SKILL.md" -SourceId "https://github.com/NothingToDooo/one_build/tree/main/skills/llm-wiki"
+    Install-LlmWikiGlobalSkill -VaultPath $VaultPath
     Write-Step "全局 skills 已同步到：$(Get-GlobalSkillsRoot)"
 }
 
@@ -588,7 +604,7 @@ try {
     Ensure-ObsidianCli
     Install-LlmWiki -VaultPath $vaultPath
     Deploy-LlmWikiWorkflow -VaultPath $vaultPath
-    Sync-GlobalSkills
+    Sync-GlobalSkills -VaultPath $vaultPath
     try {
         Open-InstalledApps -VaultPath $vaultPath
     }

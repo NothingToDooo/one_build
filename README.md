@@ -96,7 +96,7 @@ Codex 会先读取根目录 `AGENTS.md`，再进入 `llmwiki/AGENTS.md`、`SCHEM
 
 脚本会安装或更新这些 skill 到 `~/.agents/skills`：
 
-- `llm-wiki`：本仓库提供的中文 Codex LLM Wiki 工作流 skill。
+- `llm-wiki`：安装时生成的入口 skill，只记录用户选择的 vault 路径，并指引 Codex 读取 `llmwiki/AGENTS.md`。
 - `defuddle`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/defuddle)。
 - `obsidian-bases`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-bases)。
 - `obsidian-cli`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-cli)。
@@ -105,7 +105,7 @@ Codex 会先读取根目录 `AGENTS.md`，再进入 `llmwiki/AGENTS.md`、`SCHEM
 - `mermaid-visualizer`：来自 [axtonliu/axton-obsidian-visual-skills](https://github.com/axtonliu/axton-obsidian-visual-skills/tree/main/mermaid-visualizer)。
 - `obsidian-canvas-creator`：来自 [axtonliu/axton-obsidian-visual-skills](https://github.com/axtonliu/axton-obsidian-visual-skills/tree/main/obsidian-canvas-creator)。
 
-如果目标目录里已经有同名 skill，且不是 one_build 之前安装的版本，脚本会先备份到 `~/.agents/skills/_one_build_backups`，再安装新版。
+这些固定名单内的 skill 会在安装时直接替换同名目录，确保用户拿到当前脚本定义的版本。
 
 ## 边界
 

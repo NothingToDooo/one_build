@@ -3,7 +3,6 @@ set -euo pipefail
 
 SKIP_OPEN_APPS=0
 TEMPLATE_BASE_URL="https://raw.githubusercontent.com/NothingToDooo/one_build/main/templates"
-OWN_SKILL_BASE_URL="https://raw.githubusercontent.com/NothingToDooo/one_build/main/skills"
 
 for arg in "$@"; do
   case "$arg" in
@@ -302,23 +301,13 @@ install_managed_skill_directory() {
   local source_id="$3"
   local skills_root
   local target_dir
-  local marker_path
 
   skills_root="$(global_skills_root)"
   mkdir -p "$skills_root"
   target_dir="$skills_root/$name"
-  marker_path="$target_dir/.one-build-source.json"
 
   if [[ -d "$target_dir" ]]; then
-    if [[ -f "$marker_path" ]]; then
-      rm -rf "$target_dir"
-    else
-      local backup_root="$skills_root/_one_build_backups"
-      local backup_dir="$backup_root/$name-$(date +%Y%m%d%H%M%S)"
-      mkdir -p "$backup_root"
-      warn "全局 skill 已存在且没有 one_build 标记，正在备份到：$backup_dir"
-      mv "$target_dir" "$backup_dir"
-    fi
+    rm -rf "$target_dir"
   fi
 
   cp -R "$source_dir" "$target_dir"
@@ -329,17 +318,6 @@ install_managed_skill_directory() {
   "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
-}
-
-install_managed_skill_file() {
-  local name="$1"
-  local skill_url="$2"
-  local source_id="$3"
-  local temp_dir
-
-  temp_dir="$(mktemp -d "/tmp/one-build-skill-${name}.XXXXXX")"
-  curl -fsSL "$skill_url" -o "$temp_dir/SKILL.md"
-  install_managed_skill_directory "$name" "$temp_dir" "$source_id"
 }
 
 expand_repo_archive() {
@@ -354,7 +332,46 @@ expand_repo_archive() {
   find "$destination" -maxdepth 1 -type d -name '*-main' | head -n 1
 }
 
+install_llmwiki_global_skill() {
+  local vault_path="$1"
+  local wiki_path="$vault_path/llmwiki"
+  local temp_dir
+
+  temp_dir="$(mktemp -d "/tmp/one-build-skill-llm-wiki.XXXXXX")"
+  cat > "$temp_dir/SKILL.md" <<EOF
+---
+name: llm-wiki
+description: 定位并进入用户的 Codex LLM Wiki。适用于用户提到 llmwiki、LLM Wiki、知识库、Obsidian wiki，或要求导入资料、查询知识库、整理 wiki 时。
+---
+
+# Codex LLM Wiki 入口
+
+这个全局 skill 只负责定位 wiki 和加载本地规则，不定义具体维护规则。
+
+## 当前安装位置
+
+- Obsidian vault：\`$vault_path\`
+- LLM Wiki：\`$wiki_path\`
+
+## 使用方式
+
+1. 进入 Obsidian vault：\`$vault_path\`。
+2. 确认 \`llmwiki/AGENTS.md\` 存在。
+3. 先读取：
+   - \`llmwiki/AGENTS.md\`
+   - \`llmwiki/SCHEMA.md\`
+   - \`llmwiki/index.md\`
+   - \`llmwiki/log.md\`
+4. 后续全部按照 \`llmwiki/AGENTS.md\` 和 \`llmwiki/SCHEMA.md\` 执行。
+
+如果用户明确指定了另一个 vault，则以用户指定路径为准，并重复读取该 vault 下的 \`llmwiki/\` 规则文件。
+EOF
+
+  install_managed_skill_directory "llm-wiki" "$temp_dir" "generated-by-one_build:$wiki_path"
+}
+
 sync_global_skills() {
+  local vault_path="$1"
   log "正在同步 Codex 全局 skills"
   local temp_root
   local kepano_root
@@ -373,7 +390,7 @@ sync_global_skills() {
     install_managed_skill_directory "$name" "$visual_root/$name" "https://github.com/axtonliu/axton-obsidian-visual-skills/tree/main/$name"
   done
 
-  install_managed_skill_file "llm-wiki" "$OWN_SKILL_BASE_URL/llm-wiki/SKILL.md" "https://github.com/NothingToDooo/one_build/tree/main/skills/llm-wiki"
+  install_llmwiki_global_skill "$vault_path"
   log "全局 skills 已同步到：$(global_skills_root)"
 }
 
@@ -428,7 +445,7 @@ main() {
   install_llmwiki "$vault_path"
   deploy_llmwiki_workflow "$vault_path"
   ensure_command unzip
-  sync_global_skills
+  sync_global_skills "$vault_path"
   open_apps "$vault_path"
   log "完成"
 }
