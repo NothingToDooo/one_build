@@ -1,6 +1,3 @@
-﻿## 安装前置条件
-
-Obsidian 模式需要 vault 内已安装并启用社区插件 `obsidian-excalidraw-plugin`。one_build 安装脚本会自动下载并启用该插件；如果当前 vault 不是 one_build 选择的 vault，首次使用前先检查 `.obsidian/plugins/obsidian-excalidraw-plugin/manifest.json` 和 `.obsidian/community-plugins.json`。
 ---
 name: excalidraw-diagram
 description: Generate Excalidraw diagrams from text content. Supports three output modes - Obsidian (.md), Standard (.excalidraw), and Animated (.excalidraw with animation order). Triggers on "Excalidraw", "画图", "流程图", "思维导图", "可视化", "diagram", "标准Excalidraw", "standard excalidraw", "Excalidraw动画", "动画图", "animate".
@@ -477,4 +474,3 @@ Excalidraw 动画图已生成！
 3. 预览动画效果
 4. 点击 Export 导出 SVG 或 WebM
 ```
-

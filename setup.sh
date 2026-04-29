@@ -353,19 +353,6 @@ install_managed_skill_directory() {
   if [[ "$name" == "defuddle" ]]; then
     perl -0pi -e 's/If not installed: `npm install -g defuddle`/如果未安装，请使用 `bun install -g defuddle`。/g' "$target_dir/SKILL.md"
   fi
-  if [[ "$name" == "excalidraw-diagram" ]]; then
-    if ! grep -q '## 安装前置条件' "$target_dir/SKILL.md"; then
-      local tmp_skill="$target_dir/SKILL.md.tmp"
-      cat > "$tmp_skill" <<'EOF'
-## 安装前置条件
-
-Obsidian 模式需要 vault 内已安装并启用社区插件 `obsidian-excalidraw-plugin`。one_build 安装脚本会自动下载并启用该插件；如果当前 vault 不是 one_build 选择的 vault，首次使用前先检查 `.obsidian/plugins/obsidian-excalidraw-plugin/manifest.json` 和 `.obsidian/community-plugins.json`。
-
-EOF
-      cat "$target_dir/SKILL.md" >> "$tmp_skill"
-      mv "$tmp_skill" "$target_dir/SKILL.md"
-    fi
-  fi
   cat > "$target_dir/.one-build-source.json" <<EOF
 {
   "name": "$name",

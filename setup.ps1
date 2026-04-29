@@ -462,19 +462,6 @@ function Install-ManagedSkillDirectory {
         $skillText = $skillText.Replace('If not installed: `npm install -g defuddle`', '如果未安装，请使用 `bun install -g defuddle`。')
         Set-Content -LiteralPath $skillPath -Value $skillText -Encoding UTF8
     }
-    if ($Name -eq "excalidraw-diagram") {
-        $skillPath = Join-Path $targetDir "SKILL.md"
-        $skillText = Get-Content -LiteralPath $skillPath -Raw
-        if ($skillText -notmatch "## 安装前置条件") {
-            $prefix = @'
-## 安装前置条件
-
-Obsidian 模式需要 vault 内已安装并启用社区插件 `obsidian-excalidraw-plugin`。one_build 安装脚本会自动下载并启用该插件；如果当前 vault 不是 one_build 选择的 vault，首次使用前先检查 `.obsidian/plugins/obsidian-excalidraw-plugin/manifest.json` 和 `.obsidian/community-plugins.json`。
-
-'@
-            Set-Content -LiteralPath $skillPath -Value ($prefix + $skillText) -Encoding UTF8
-        }
-    }
     @{
         name = $Name
         source = $SourceId
