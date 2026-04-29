@@ -177,24 +177,33 @@ install_llmwiki() {
   local vault_path="$1"
   local wiki_dir="$vault_path/llmwiki"
 
-  log "正在安装或升级 llmwiki"
-  uv tool install --upgrade llmwiki
+  if command -v llmbase >/dev/null 2>&1; then
+    log "llmwiki 已安装，跳过升级"
+  else
+    log "正在安装 llmwiki"
+    uv tool install llmwiki
+  fi
   refresh_path
-  if ! command -v llmwiki >/dev/null 2>&1; then
-    echo "llmwiki 已安装，但当前 PATH 中仍找不到 llmwiki。" >&2
+  if ! command -v llmbase >/dev/null 2>&1; then
+    echo "llmwiki 已安装，但当前 PATH 中仍找不到 llmbase。" >&2
     exit 1
   fi
 
-  mkdir -p "$wiki_dir"
-  log "正在初始化 LLM Wiki：$wiki_dir"
-  (
-    cd "$wiki_dir"
-    llmwiki init
-    log "正在同步可用的 agent 会话"
-    llmwiki sync || warn "llmwiki sync 失败；将继续尝试链接 Obsidian。"
-    log "正在将 LLM Wiki 链接到 Obsidian 仓库"
-    llmwiki link-obsidian --vault "$vault_path" || warn "llmwiki link-obsidian 失败；请检查 llmwiki 版本和仓库权限。"
-  )
+  mkdir -p "$wiki_dir/raw" "$wiki_dir/wiki/outputs" "$wiki_dir/wiki/_meta" "$wiki_dir/wiki/concepts"
+  if [[ -f "$wiki_dir/config.yaml" ]] && (! grep -Eq '^[[:space:]]*outputs[[:space:]]*:' "$wiki_dir/config.yaml" || ! grep -Eq '^[[:space:]]*meta[[:space:]]*:' "$wiki_dir/config.yaml"); then
+    log "正在补齐 LLM Wiki 配置：$wiki_dir/config.yaml"
+    cat > "$wiki_dir/config.yaml" <<'EOF'
+paths:
+  raw: raw
+  wiki: wiki
+  outputs: wiki/outputs
+  meta: wiki/_meta
+  concepts: wiki/concepts
+EOF
+  fi
+
+  log "正在检查 LLM Wiki 状态"
+  llmbase --base-dir "$wiki_dir" stats || warn "llmbase stats 失败；请稍后检查配置和权限。"
 }
 
 open_apps() {

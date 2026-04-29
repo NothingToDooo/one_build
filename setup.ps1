@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$SkipOpenApps,
-    [switch]$NoPause
+    [switch]$NoPause,
+    [switch]$UpgradeTools
 )
 
 $ErrorActionPreference = "Stop"
@@ -44,6 +45,9 @@ function Restart-Elevated {
     }
     if ($NoPause) {
         $arguments += "-NoPause"
+    }
+    if ($UpgradeTools) {
+        $arguments += "-UpgradeTools"
     }
 
     Start-Process -FilePath "powershell.exe" -ArgumentList $arguments -Verb RunAs
@@ -202,8 +206,13 @@ function Install-OrUpgradeWingetPackage {
     }
 
     if (Test-WingetPackageInstalled -Id $Id -Source $Source) {
-        Write-Step "$Name 已安装，正在尝试升级"
-        Invoke-LoggedCommand -FilePath "winget" -Arguments (@("upgrade") + $packageArgs + $commonArgs) -AllowFailure | Out-Null
+        if ($UpgradeTools) {
+            Write-Step "$Name 已安装，正在尝试升级"
+            Invoke-LoggedCommand -FilePath "winget" -Arguments (@("upgrade") + $packageArgs + $commonArgs) -AllowFailure | Out-Null
+        }
+        else {
+            Write-Step "$Name 已安装，跳过升级"
+        }
         return
     }
 
@@ -214,28 +223,49 @@ function Install-OrUpgradeWingetPackage {
 function Install-LlmWiki {
     param([string]$VaultPath)
 
-    Write-Step "正在安装或升级 llmwiki"
-    Invoke-LoggedCommand -FilePath "uv" -Arguments @("tool", "install", "--upgrade", "llmwiki")
+    if (Test-Command "llmbase") {
+        if ($UpgradeTools) {
+            Write-Step "llmwiki 已安装，正在升级"
+            Invoke-LoggedCommand -FilePath "uv" -Arguments @("tool", "upgrade", "llmwiki")
+        }
+        else {
+            Write-Step "llmwiki 已安装，跳过升级"
+        }
+    }
+    else {
+        Write-Step "正在安装 llmwiki"
+        Invoke-LoggedCommand -FilePath "uv" -Arguments @("tool", "install", "llmwiki")
+    }
     Refresh-Path
-    if (-not (Test-Command "llmwiki")) {
-        throw "llmwiki 已安装，但当前 PATH 中仍找不到 llmwiki。"
+    if (-not (Test-Command "llmbase")) {
+        throw "llmwiki 已安装，但当前 PATH 中仍找不到 llmbase。"
     }
 
     $wikiDir = Join-Path $VaultPath "llmwiki"
-    New-Item -ItemType Directory -Force -Path $wikiDir | Out-Null
+    $rawDir = Join-Path $wikiDir "raw"
+    $outputsDir = Join-Path $wikiDir "wiki\outputs"
+    $metaDir = Join-Path $wikiDir "wiki\_meta"
+    $conceptsDir = Join-Path $wikiDir "wiki\concepts"
+    New-Item -ItemType Directory -Force -Path $rawDir, $outputsDir, $metaDir, $conceptsDir | Out-Null
 
-    Push-Location $wikiDir
-    try {
-        Write-Step "正在初始化 LLM Wiki：$wikiDir"
-        Invoke-LoggedCommand -FilePath "llmwiki" -Arguments @("init")
-        Write-Step "正在同步可用的 agent 会话"
-        Invoke-LoggedCommand -FilePath "llmwiki" -Arguments @("sync") -AllowFailure | Out-Null
-        Write-Step "正在将 LLM Wiki 链接到 Obsidian 仓库"
-        Invoke-LoggedCommand -FilePath "llmwiki" -Arguments @("link-obsidian", "--vault", $VaultPath) -AllowFailure | Out-Null
+    $configPath = Join-Path $wikiDir "config.yaml"
+    if (Test-Path -LiteralPath $configPath) {
+        $configText = Get-Content -LiteralPath $configPath -Raw
+        if ($configText -notmatch "(?m)^\s*outputs\s*:" -or $configText -notmatch "(?m)^\s*meta\s*:") {
+            Write-Step "正在补齐 LLM Wiki 配置：$configPath"
+            @"
+paths:
+  raw: raw
+  wiki: wiki
+  outputs: wiki/outputs
+  meta: wiki/_meta
+  concepts: wiki/concepts
+"@ | Set-Content -LiteralPath $configPath -Encoding UTF8
+        }
     }
-    finally {
-        Pop-Location
-    }
+
+    Write-Step "正在检查 LLM Wiki 状态"
+    Invoke-LoggedCommand -FilePath "llmbase" -Arguments @("--base-dir", $wikiDir, "stats") -AllowFailure | Out-Null
 }
 
 function Open-InstalledApps {
