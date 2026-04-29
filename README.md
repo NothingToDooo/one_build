@@ -1,6 +1,6 @@
 # One Build 一键配置
 
-用于给少量用户一键部署 Codex 应用、Obsidian、Obsidian CLI、`llmwiki` 命令，以及一套 Codex 可直接读取的 LLM Wiki 工作流模板。
+用于给少量用户一键部署 Codex 应用、Obsidian、Obsidian CLI、`defuddle`，以及一套 agent 可直接读取的 LLM Wiki 工作流模板。
 
 脚本发布在 GitHub Raw。用户只需要复制对应系统的一条命令执行。
 
@@ -43,12 +43,11 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 ## 脚本会做什么
 
 - Windows 自动请求管理员权限。
-- Windows 检查并补齐 `winget` 和 `uv`。
+- Windows 检查并补齐 `winget`。
 - Windows 检查并补齐 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
-- macOS 检查并补齐 `uv` 和 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
+- macOS 检查并补齐 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
 - 安装或复用 Codex 应用和 Obsidian。
 - 配置并验证 Obsidian CLI。
-- 安装或复用 `llmwiki`，实际可执行命令是 `llmbase`。
 - 要求用户通过 GUI 选择 Obsidian 仓库目录。
 - 在用户选择的仓库中创建或复用 `llmwiki/`。
 - 部署 Codex LLM Wiki 工作流模板。
@@ -112,5 +111,5 @@ Codex 会先读取根目录 `AGENTS.md`，再进入 `llmwiki/AGENTS.md`、`SCHEM
 
 - Codex 登录不会自动化。
 - Obsidian CLI 需要 Obsidian 应用正在运行。
-- `llmbase query` 需要用户本机已有可用的 LLM 配置。
 - 这不是 MCP 项目；主要入口是 Codex 读取 `AGENTS.md` 后按本地文件工作流操作。
+- 默认不安装 `llmwiki/llmbase` Python 包，也不安装 `llm-wiki-compiler`，因为它们都需要单独配置 LLM API 才能发挥主要能力。

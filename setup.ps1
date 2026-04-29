@@ -151,21 +151,6 @@ function Ensure-Winget {
     }
 }
 
-function Ensure-Uv {
-    Refresh-Path
-    if (Test-Command "uv") {
-        Write-Step "uv 已可用"
-        return
-    }
-
-    Write-Step "正在使用 Astral 官方安装器安装 uv"
-    Invoke-RestMethod "https://astral.sh/uv/install.ps1" | Invoke-Expression
-    Refresh-Path
-    if (-not (Test-Command "uv")) {
-        throw "uv 安装已完成，但当前 PATH 中仍找不到 uv。"
-    }
-}
-
 function Select-VaultFolder {
     Write-Step "请选择 Obsidian 仓库目录"
     Add-Type -AssemblyName System.Windows.Forms
@@ -272,54 +257,6 @@ function Install-Defuddle {
     if (-not (Test-Command "defuddle")) {
         throw "defuddle 安装已完成，但当前 PATH 中仍找不到 defuddle。"
     }
-}
-
-function Install-LlmWiki {
-    param([string]$VaultPath)
-
-    if (Test-Command "llmbase") {
-        if ($UpgradeTools) {
-            Write-Step "llmwiki 已安装，正在升级"
-            Invoke-LoggedCommand -FilePath "uv" -Arguments @("tool", "upgrade", "llmwiki")
-        }
-        else {
-            Write-Step "llmwiki 已安装，跳过升级"
-        }
-    }
-    else {
-        Write-Step "正在安装 llmwiki"
-        Invoke-LoggedCommand -FilePath "uv" -Arguments @("tool", "install", "llmwiki")
-    }
-    Refresh-Path
-    if (-not (Test-Command "llmbase")) {
-        throw "llmwiki 已安装，但当前 PATH 中仍找不到 llmbase。"
-    }
-
-    $wikiDir = Join-Path $VaultPath "llmwiki"
-    $rawDir = Join-Path $wikiDir "raw"
-    $outputsDir = Join-Path $wikiDir "wiki\outputs"
-    $metaDir = Join-Path $wikiDir "wiki\_meta"
-    $conceptsDir = Join-Path $wikiDir "wiki\concepts"
-    New-Item -ItemType Directory -Force -Path $rawDir, $outputsDir, $metaDir, $conceptsDir | Out-Null
-
-    $configPath = Join-Path $wikiDir "config.yaml"
-    if (Test-Path -LiteralPath $configPath) {
-        $configText = Get-Content -LiteralPath $configPath -Raw
-        if ($configText -notmatch "(?m)^\s*outputs\s*:" -or $configText -notmatch "(?m)^\s*meta\s*:") {
-            Write-Step "正在补齐 LLM Wiki 配置：$configPath"
-            @"
-paths:
-  raw: raw
-  wiki: wiki
-  outputs: wiki/outputs
-  meta: wiki/_meta
-  concepts: wiki/concepts
-"@ | Set-Content -LiteralPath $configPath -Encoding UTF8
-        }
-    }
-
-    Write-Step "正在检查 LLM Wiki 状态"
-    Invoke-LoggedCommand -FilePath "llmbase" -Arguments @("--base-dir", $wikiDir, "stats") -AllowFailure | Out-Null
 }
 
 function Save-TemplateIfMissing {
@@ -640,13 +577,11 @@ catch {
 
 try {
     Ensure-Winget
-    Ensure-Uv
     Ensure-Bun
     $vaultPath = Select-VaultFolder
     Install-OrUpgradeWingetPackage -Name "Codex 应用" -Id "9PLM9XGG6VKS" -Source "msstore"
     Install-OrUpgradeWingetPackage -Name "Obsidian" -Id "Obsidian.Obsidian"
     Ensure-ObsidianCli
-    Install-LlmWiki -VaultPath $vaultPath
     Deploy-LlmWikiWorkflow -VaultPath $vaultPath
     Install-Defuddle
     Sync-GlobalSkills -VaultPath $vaultPath

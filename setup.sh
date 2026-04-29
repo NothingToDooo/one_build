@@ -13,7 +13,7 @@ for arg in "$@"; do
       cat <<'EOF'
 用法：bash ./setup.sh [--skip-open-apps]
 
-安装或升级 Codex 应用、Obsidian、uv 和 llmwiki。
+安装或升级 Codex 应用、Obsidian、bun、defuddle 和 LLM Wiki 工作流模板。
 Obsidian 仓库目录会通过 macOS 文件夹选择器指定。
 EOF
       exit 0
@@ -48,22 +48,6 @@ ensure_command() {
   local name="$1"
   if ! command -v "$name" >/dev/null 2>&1; then
     echo "缺少必需命令：$name" >&2
-    exit 1
-  fi
-}
-
-ensure_uv() {
-  refresh_path
-  if command -v uv >/dev/null 2>&1; then
-    log "uv 已可用"
-    return
-  fi
-
-  log "正在使用 Astral 官方安装器安装 uv"
-  curl -LsSf https://astral.sh/uv/install.sh | sh
-  refresh_path
-  if ! command -v uv >/dev/null 2>&1; then
-    echo "uv 安装已完成，但当前 PATH 中仍找不到 uv。" >&2
     exit 1
   fi
 }
@@ -204,39 +188,6 @@ install_or_upgrade_obsidian() {
     log "Obsidian 未安装，正在安装官方 dmg"
   fi
   install_dmg_app "Obsidian" "$(obsidian_download_url)"
-}
-
-install_llmwiki() {
-  local vault_path="$1"
-  local wiki_dir="$vault_path/llmwiki"
-
-  if command -v llmbase >/dev/null 2>&1; then
-    log "llmwiki 已安装，跳过升级"
-  else
-    log "正在安装 llmwiki"
-    uv tool install llmwiki
-  fi
-  refresh_path
-  if ! command -v llmbase >/dev/null 2>&1; then
-    echo "llmwiki 已安装，但当前 PATH 中仍找不到 llmbase。" >&2
-    exit 1
-  fi
-
-  mkdir -p "$wiki_dir/raw" "$wiki_dir/wiki/outputs" "$wiki_dir/wiki/_meta" "$wiki_dir/wiki/concepts"
-  if [[ -f "$wiki_dir/config.yaml" ]] && (! grep -Eq '^[[:space:]]*outputs[[:space:]]*:' "$wiki_dir/config.yaml" || ! grep -Eq '^[[:space:]]*meta[[:space:]]*:' "$wiki_dir/config.yaml"); then
-    log "正在补齐 LLM Wiki 配置：$wiki_dir/config.yaml"
-    cat > "$wiki_dir/config.yaml" <<'EOF'
-paths:
-  raw: raw
-  wiki: wiki
-  outputs: wiki/outputs
-  meta: wiki/_meta
-  concepts: wiki/concepts
-EOF
-  fi
-
-  log "正在检查 LLM Wiki 状态"
-  llmbase --base-dir "$wiki_dir" stats || warn "llmbase stats 失败；请稍后检查配置和权限。"
 }
 
 download_template_if_missing() {
@@ -471,14 +422,12 @@ main() {
   ensure_command curl
   ensure_command hdiutil
   ensure_command osascript
-  ensure_uv
   ensure_bun
   local vault_path
   vault_path="$(choose_vault_folder)"
   install_or_upgrade_codex
   install_or_upgrade_obsidian
   ensure_obsidian_cli
-  install_llmwiki "$vault_path"
   deploy_llmwiki_workflow "$vault_path"
   install_defuddle
   ensure_command unzip
