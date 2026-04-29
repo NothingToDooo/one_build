@@ -67,13 +67,11 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - 部署 Codex LLM Wiki 工作流模板。
 - 在用户选择的 vault 内安装并启用 Excalidraw 社区插件，供 `excalidraw-diagram` skill 使用。
 - 同步常用 Obsidian/Codex skills 到用户全局目录 `~/.agents/skills`。
-- 创建或补充仓库根目录 `AGENTS.md`，让 Codex 打开整个 vault 时也能发现 `llmwiki/raw/AGENTS.md`。
 
 ## 部署后的结构
 
 ```text
 你的 Obsidian 仓库
-├── AGENTS.md
 └── llmwiki
     ├── 实体
     ├── 概念
@@ -110,7 +108,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 请基于 llmwiki 回答“这些资料里反复出现的核心主张是什么”，答案要链接到相关 wiki 页面和原始资料。
 ```
 
-Codex 会先读取根目录 `AGENTS.md`，再进入 `llmwiki/raw/AGENTS.md`、`SCHEMA.md`、`index.md` 和 `log.md` 执行工作流。
+Codex 通过全局 `llm-wiki` skill 定位到所选 vault 后，会进入 `llmwiki/raw/AGENTS.md`、`SCHEMA.md`、`index.md` 和 `log.md` 执行工作流。
 
 ## 同步的全局 skills
 
@@ -133,5 +131,5 @@ Codex 会先读取根目录 `AGENTS.md`，再进入 `llmwiki/raw/AGENTS.md`、`S
 
 - Codex 登录不会自动化。
 - Obsidian CLI 是 best-effort 配置；如果不可用，agent 仍可直接编辑 vault 内文件。
-- 这不是 MCP 项目；主要入口是 Codex 读取 `AGENTS.md` 后按本地文件工作流操作。
+- 这不是 MCP 项目；主要入口是全局 `llm-wiki` skill 定位 vault 后按本地文件工作流操作。
 - 默认不安装 `llmwiki/llmbase` Python 包，也不安装 `llm-wiki-compiler`，因为它们都需要单独配置 LLM API 才能发挥主要能力。

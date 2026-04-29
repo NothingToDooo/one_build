@@ -404,43 +404,6 @@ function Save-TemplateIfMissing {
     Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $Path
 }
 
-function Ensure-RootAgentsFile {
-    param([Parameter(Mandatory = $true)][string]$VaultPath)
-
-    $rootAgents = Join-Path $VaultPath "AGENTS.md"
-    $section = @'
-
-## Codex LLM Wiki
-
-这个 Obsidian 仓库包含一套 Codex LLM Wiki 工作流，用户阅读目录位于 `llmwiki/`，agent 工作规则位于 `llmwiki/raw/`。
-
-使用或维护这套知识库前，先阅读：
-
-- `llmwiki/raw/AGENTS.md`
-- `llmwiki/raw/SCHEMA.md`
-- `llmwiki/raw/index.md`
-- `llmwiki/raw/log.md`
-
-除非用户明确要求，不要修改 `llmwiki/` 外的用户笔记。
-'@
-
-    if (Test-Path -LiteralPath $rootAgents) {
-        $existing = Get-Content -LiteralPath $rootAgents -Raw
-        if ($existing -match "llmwiki/raw/AGENTS\.md") {
-            Write-Step "根目录 AGENTS.md 已包含 LLM Wiki 指引，跳过"
-            return
-        }
-        Write-Step "正在补充根目录 AGENTS.md"
-        Add-Content -LiteralPath $rootAgents -Value $section -Encoding UTF8
-        return
-    }
-
-    Write-Step "正在创建根目录 AGENTS.md"
-    @'
-# Codex 仓库指引
-'@ + $section | Set-Content -LiteralPath $rootAgents -Encoding UTF8
-}
-
 function Deploy-LlmWikiWorkflow {
     param([Parameter(Mandatory = $true)][string]$VaultPath)
 
@@ -470,8 +433,6 @@ function Deploy-LlmWikiWorkflow {
     foreach ($name in @("AGENTS.md", "SCHEMA.md", "index.md", "log.md")) {
         Save-TemplateIfMissing -Url "$TemplateBaseUrl/$name" -Path (Join-Path $rawDir $name)
     }
-
-    Ensure-RootAgentsFile -VaultPath $VaultPath
 }
 
 function Get-GlobalSkillsRoot {

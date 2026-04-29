@@ -301,54 +301,6 @@ download_template_if_missing() {
   curl -fsSL "$url" -o "$path"
 }
 
-ensure_root_agents_file() {
-  local vault_path="$1"
-  local root_agents="$vault_path/AGENTS.md"
-
-  if [[ -f "$root_agents" ]] && grep -q 'llmwiki/raw/AGENTS\.md' "$root_agents"; then
-    log "根目录 AGENTS.md 已包含 LLM Wiki 指引，跳过"
-    return
-  fi
-
-  if [[ -f "$root_agents" ]]; then
-    log "正在补充根目录 AGENTS.md"
-    cat >> "$root_agents" <<'EOF'
-
-## Codex LLM Wiki
-
-这个 Obsidian 仓库包含一套 Codex LLM Wiki 工作流，用户阅读目录位于 `llmwiki/`，agent 工作规则位于 `llmwiki/raw/`。
-
-使用或维护这套知识库前，先阅读：
-
-- `llmwiki/raw/AGENTS.md`
-- `llmwiki/raw/SCHEMA.md`
-- `llmwiki/raw/index.md`
-- `llmwiki/raw/log.md`
-
-除非用户明确要求，不要修改 `llmwiki/` 外的用户笔记。
-EOF
-    return
-  fi
-
-  log "正在创建根目录 AGENTS.md"
-  cat > "$root_agents" <<'EOF'
-# Codex 仓库指引
-
-## Codex LLM Wiki
-
-这个 Obsidian 仓库包含一套 Codex LLM Wiki 工作流，用户阅读目录位于 `llmwiki/`，agent 工作规则位于 `llmwiki/raw/`。
-
-使用或维护这套知识库前，先阅读：
-
-- `llmwiki/raw/AGENTS.md`
-- `llmwiki/raw/SCHEMA.md`
-- `llmwiki/raw/index.md`
-- `llmwiki/raw/log.md`
-
-除非用户明确要求，不要修改 `llmwiki/` 外的用户笔记。
-EOF
-}
-
 deploy_llmwiki_workflow() {
   local vault_path="$1"
   local wiki_dir="$vault_path/llmwiki"
@@ -375,7 +327,6 @@ deploy_llmwiki_workflow() {
   download_template_if_missing "$TEMPLATE_BASE_URL/SCHEMA.md" "$raw_dir/SCHEMA.md"
   download_template_if_missing "$TEMPLATE_BASE_URL/index.md" "$raw_dir/index.md"
   download_template_if_missing "$TEMPLATE_BASE_URL/log.md" "$raw_dir/log.md"
-  ensure_root_agents_file "$vault_path"
 }
 
 global_skills_root() {
