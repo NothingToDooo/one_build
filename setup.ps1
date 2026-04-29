@@ -276,11 +276,32 @@ function Open-InstalledApps {
     }
 
     Write-Step "正在打开 Codex 和 Obsidian"
-    try {
-        Start-Process "ms-windows-store://pdp/?ProductId=9PLM9XGG6VKS" -ErrorAction Stop
+
+    $codexRunning = Get-Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.ProcessName -ieq "Codex" -or ($_.Path -and $_.Path -match "\\OpenAI\.Codex_")
+    } | Select-Object -First 1
+    if ($codexRunning) {
+        Write-Step "Codex 已在运行，跳过打开"
     }
-    catch {
-        Write-Warn "无法自动打开 Codex。请从开始菜单手动打开 Codex。原因：$($_.Exception.Message)"
+    else {
+        try {
+            $codexAppId = (Get-StartApps | Where-Object { $_.Name -eq "Codex" -or $_.AppID -match "^OpenAI\.Codex_" } | Select-Object -First 1 -ExpandProperty AppID)
+            if ($codexAppId) {
+                Start-Process "shell:AppsFolder\$codexAppId" -ErrorAction Stop
+            }
+            else {
+                Write-Warn "未在开始菜单中找到 Codex AppID，请从开始菜单手动打开 Codex。"
+            }
+        }
+        catch {
+            Write-Warn "无法自动打开 Codex。请从开始菜单手动打开 Codex。原因：$($_.Exception.Message)"
+        }
+    }
+
+    $obsidianRunning = Get-Process -Name "Obsidian" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($obsidianRunning) {
+        Write-Step "Obsidian 已在运行，跳过打开"
+        return
     }
 
     try {
