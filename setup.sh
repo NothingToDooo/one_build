@@ -341,10 +341,10 @@ install_llmwiki_global_skill() {
   cat > "$temp_dir/SKILL.md" <<EOF
 ---
 name: llm-wiki
-description: 定位并进入用户的 Codex LLM Wiki。适用于用户提到 llmwiki、LLM Wiki、知识库、Obsidian wiki，或要求导入资料、查询知识库、整理 wiki 时。
+description: 定位并进入用户的 LLM Wiki 或 Obsidian 知识库。适用于用户询问项目记忆、资料来源、已有笔记、研究结论、知识库内容、wiki 内容，或要求导入、查询、整理、总结、更新本地知识资料时。
 ---
 
-# Codex LLM Wiki 入口
+# LLM Wiki 入口
 
 这个全局 skill 只负责定位 wiki 和加载本地规则，不定义具体维护规则。
 
