@@ -51,6 +51,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - 要求用户通过 GUI 选择 Obsidian 仓库目录。
 - 在用户选择的仓库中创建或复用 `llmwiki/`。
 - 部署 Codex LLM Wiki 工作流模板。
+- 在用户选择的 vault 内安装并启用 Excalidraw 社区插件，供 `excalidraw-diagram` skill 使用。
 - 同步常用 Obsidian/Codex skills 到用户全局目录 `~/.agents/skills`。
 - 创建或补充仓库根目录 `AGENTS.md`，让 Codex 打开整个 vault 时也能发现 `llmwiki/AGENTS.md`。
 
@@ -106,6 +107,8 @@ Codex 会先读取根目录 `AGENTS.md`，再进入 `llmwiki/AGENTS.md`、`SCHEM
 - `obsidian-canvas-creator`：来自 [axtonliu/axton-obsidian-visual-skills](https://github.com/axtonliu/axton-obsidian-visual-skills/tree/main/obsidian-canvas-creator)。
 
 这些固定名单内的 skill 会在安装时直接替换同名目录，确保用户拿到当前脚本定义的版本。
+
+`obsidian-bases`、`obsidian-canvas-creator`、`mermaid-visualizer` 使用 Obsidian 核心能力或 Markdown 渲染能力，不需要额外社区插件。`excalidraw-diagram` 需要社区插件 `obsidian-excalidraw-plugin`，脚本会自动下载到所选 vault 的 `.obsidian/plugins/obsidian-excalidraw-plugin/` 并写入 `.obsidian/community-plugins.json`。
 
 ## 边界
 

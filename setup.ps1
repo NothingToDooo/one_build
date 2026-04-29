@@ -259,6 +259,57 @@ function Install-Defuddle {
     }
 }
 
+function Enable-ObsidianCommunityPlugin {
+    param(
+        [Parameter(Mandatory = $true)][string]$VaultPath,
+        [Parameter(Mandatory = $true)][string]$PluginId
+    )
+
+    $obsidianDir = Join-Path $VaultPath ".obsidian"
+    New-Item -ItemType Directory -Force -Path $obsidianDir | Out-Null
+    $pluginsPath = Join-Path $obsidianDir "community-plugins.json"
+
+    $plugins = @()
+    if (Test-Path -LiteralPath $pluginsPath) {
+        try {
+            $parsed = Get-Content -LiteralPath $pluginsPath -Raw | ConvertFrom-Json
+            if ($parsed) {
+                $plugins = @($parsed)
+            }
+        }
+        catch {
+            Write-Warn "无法解析 community-plugins.json，正在重建插件启用列表。原因：$($_.Exception.Message)"
+        }
+    }
+
+    if ($plugins -notcontains $PluginId) {
+        $plugins += $PluginId
+    }
+
+    ConvertTo-Json -InputObject $plugins | Set-Content -LiteralPath $pluginsPath -Encoding UTF8
+}
+
+function Install-ObsidianExcalidrawPlugin {
+    param([Parameter(Mandatory = $true)][string]$VaultPath)
+
+    $pluginId = "obsidian-excalidraw-plugin"
+    $pluginDir = Join-Path $VaultPath ".obsidian\plugins\$pluginId"
+    $manifestPath = Join-Path $pluginDir "manifest.json"
+    if ((Test-Path -LiteralPath $manifestPath) -and (-not $UpgradeTools)) {
+        Write-Step "Obsidian Excalidraw 插件已安装，跳过更新"
+        Enable-ObsidianCommunityPlugin -VaultPath $VaultPath -PluginId $pluginId
+        return
+    }
+
+    Write-Step "正在安装 Obsidian Excalidraw 插件"
+    New-Item -ItemType Directory -Force -Path $pluginDir | Out-Null
+    foreach ($file in @("main.js", "manifest.json", "styles.css")) {
+        $url = "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/$file"
+        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile (Join-Path $pluginDir $file)
+    }
+    Enable-ObsidianCommunityPlugin -VaultPath $VaultPath -PluginId $pluginId
+}
+
 function Save-TemplateIfMissing {
     param(
         [Parameter(Mandatory = $true)][string]$Url,
@@ -363,6 +414,17 @@ function Install-ManagedSkillDirectory {
         $skillText = Get-Content -LiteralPath $skillPath -Raw
         $skillText = $skillText.Replace('If not installed: `npm install -g defuddle`', '如果未安装，请使用 `bun install -g defuddle`。')
         Set-Content -LiteralPath $skillPath -Value $skillText -Encoding UTF8
+    }
+    if ($Name -eq "excalidraw-diagram") {
+        $skillPath = Join-Path $targetDir "SKILL.md"
+        $skillText = Get-Content -LiteralPath $skillPath -Raw
+        $prefix = @"
+## 安装前置条件
+
+Obsidian 模式需要 vault 内已安装并启用社区插件 `obsidian-excalidraw-plugin`。one_build 安装脚本会自动下载并启用该插件；如果当前 vault 不是 one_build 选择的 vault，首次使用前先检查 `.obsidian/plugins/obsidian-excalidraw-plugin/manifest.json` 和 `.obsidian/community-plugins.json`。
+
+"@
+        Set-Content -LiteralPath $skillPath -Value ($prefix + $skillText) -Encoding UTF8
     }
     @{
         name = $Name
@@ -584,6 +646,7 @@ try {
     Ensure-ObsidianCli
     Deploy-LlmWikiWorkflow -VaultPath $vaultPath
     Install-Defuddle
+    Install-ObsidianExcalidrawPlugin -VaultPath $vaultPath
     Sync-GlobalSkills -VaultPath $vaultPath
     try {
         Open-InstalledApps -VaultPath $vaultPath

@@ -84,6 +84,48 @@ install_defuddle() {
   fi
 }
 
+enable_obsidian_community_plugin() {
+  local vault_path="$1"
+  local plugin_id="$2"
+  local obsidian_dir="$vault_path/.obsidian"
+  local plugins_file="$obsidian_dir/community-plugins.json"
+
+  mkdir -p "$obsidian_dir"
+  if [[ ! -f "$plugins_file" ]]; then
+    printf '[\n  "%s"\n]\n' "$plugin_id" > "$plugins_file"
+    return
+  fi
+
+  if grep -q "\"$plugin_id\"" "$plugins_file"; then
+    return
+  fi
+
+  if perl -0ne 'exit(/\[\s*\]\s*$/ ? 0 : 1)' "$plugins_file"; then
+    printf '[\n  "%s"\n]\n' "$plugin_id" > "$plugins_file"
+  else
+    perl -0pi -e 's/\]\s*$/,\n  "'"$plugin_id"'"\n]\n/s' "$plugins_file"
+  fi
+}
+
+install_obsidian_excalidraw_plugin() {
+  local vault_path="$1"
+  local plugin_id="obsidian-excalidraw-plugin"
+  local plugin_dir="$vault_path/.obsidian/plugins/$plugin_id"
+
+  if [[ -f "$plugin_dir/manifest.json" ]]; then
+    log "Obsidian Excalidraw 插件已安装，跳过更新"
+    enable_obsidian_community_plugin "$vault_path" "$plugin_id"
+    return
+  fi
+
+  log "正在安装 Obsidian Excalidraw 插件"
+  mkdir -p "$plugin_dir"
+  curl -fsSL "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/main.js" -o "$plugin_dir/main.js"
+  curl -fsSL "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/manifest.json" -o "$plugin_dir/manifest.json"
+  curl -fsSL "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/styles.css" -o "$plugin_dir/styles.css"
+  enable_obsidian_community_plugin "$vault_path" "$plugin_id"
+}
+
 choose_vault_folder() {
   log "请选择 Obsidian 仓库目录"
   local selected
@@ -297,6 +339,17 @@ install_managed_skill_directory() {
   if [[ "$name" == "defuddle" ]]; then
     perl -0pi -e 's/If not installed: `npm install -g defuddle`/如果未安装，请使用 `bun install -g defuddle`。/g' "$target_dir/SKILL.md"
   fi
+  if [[ "$name" == "excalidraw-diagram" ]]; then
+    local tmp_skill="$target_dir/SKILL.md.tmp"
+    cat > "$tmp_skill" <<'EOF'
+## 安装前置条件
+
+Obsidian 模式需要 vault 内已安装并启用社区插件 `obsidian-excalidraw-plugin`。one_build 安装脚本会自动下载并启用该插件；如果当前 vault 不是 one_build 选择的 vault，首次使用前先检查 `.obsidian/plugins/obsidian-excalidraw-plugin/manifest.json` 和 `.obsidian/community-plugins.json`。
+
+EOF
+    cat "$target_dir/SKILL.md" >> "$tmp_skill"
+    mv "$tmp_skill" "$target_dir/SKILL.md"
+  fi
   cat > "$target_dir/.one-build-source.json" <<EOF
 {
   "name": "$name",
@@ -430,6 +483,7 @@ main() {
   ensure_obsidian_cli
   deploy_llmwiki_workflow "$vault_path"
   install_defuddle
+  install_obsidian_excalidraw_plugin "$vault_path"
   ensure_command unzip
   sync_global_skills "$vault_path"
   open_apps "$vault_path"
