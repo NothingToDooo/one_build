@@ -51,6 +51,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - 要求用户通过 GUI 选择 Obsidian 仓库目录。
 - 在用户选择的仓库中创建或复用 `llmwiki/`。
 - 部署 Codex LLM Wiki 工作流模板。
+- 同步常用 Obsidian/Codex skills 到用户全局目录 `~/.agents/skills`。
 - 创建或补充仓库根目录 `AGENTS.md`，让 Codex 打开整个 vault 时也能发现 `llmwiki/AGENTS.md`。
 
 ## 部署后的结构
@@ -90,6 +91,21 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 ```
 
 Codex 会先读取根目录 `AGENTS.md`，再进入 `llmwiki/AGENTS.md`、`SCHEMA.md`、`index.md` 和 `log.md` 执行工作流。
+
+## 同步的全局 skills
+
+脚本会安装或更新这些 skill 到 `~/.agents/skills`：
+
+- `llm-wiki`：本仓库提供的中文 Codex LLM Wiki 工作流 skill。
+- `defuddle`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/defuddle)。
+- `obsidian-bases`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-bases)。
+- `obsidian-cli`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-cli)。
+- `obsidian-markdown`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-markdown)。
+- `excalidraw-diagram`：来自 [axtonliu/axton-obsidian-visual-skills](https://github.com/axtonliu/axton-obsidian-visual-skills/tree/main/excalidraw-diagram)。
+- `mermaid-visualizer`：来自 [axtonliu/axton-obsidian-visual-skills](https://github.com/axtonliu/axton-obsidian-visual-skills/tree/main/mermaid-visualizer)。
+- `obsidian-canvas-creator`：来自 [axtonliu/axton-obsidian-visual-skills](https://github.com/axtonliu/axton-obsidian-visual-skills/tree/main/obsidian-canvas-creator)。
+
+如果目标目录里已经有同名 skill，且不是 one_build 之前安装的版本，脚本会先备份到 `~/.agents/skills/_one_build_backups`，再安装新版。
 
 ## 边界
 

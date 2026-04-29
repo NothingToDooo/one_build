@@ -3,6 +3,7 @@ set -euo pipefail
 
 SKIP_OPEN_APPS=0
 TEMPLATE_BASE_URL="https://raw.githubusercontent.com/NothingToDooo/one_build/main/templates"
+OWN_SKILL_BASE_URL="https://raw.githubusercontent.com/NothingToDooo/one_build/main/skills"
 
 for arg in "$@"; do
   case "$arg" in
@@ -291,6 +292,91 @@ deploy_llmwiki_workflow() {
   ensure_root_agents_file "$vault_path"
 }
 
+global_skills_root() {
+  printf '%s\n' "$HOME/.agents/skills"
+}
+
+install_managed_skill_directory() {
+  local name="$1"
+  local source_dir="$2"
+  local source_id="$3"
+  local skills_root
+  local target_dir
+  local marker_path
+
+  skills_root="$(global_skills_root)"
+  mkdir -p "$skills_root"
+  target_dir="$skills_root/$name"
+  marker_path="$target_dir/.one-build-source.json"
+
+  if [[ -d "$target_dir" ]]; then
+    if [[ -f "$marker_path" ]]; then
+      rm -rf "$target_dir"
+    else
+      local backup_root="$skills_root/_one_build_backups"
+      local backup_dir="$backup_root/$name-$(date +%Y%m%d%H%M%S)"
+      mkdir -p "$backup_root"
+      warn "全局 skill 已存在且没有 one_build 标记，正在备份到：$backup_dir"
+      mv "$target_dir" "$backup_dir"
+    fi
+  fi
+
+  cp -R "$source_dir" "$target_dir"
+  cat > "$target_dir/.one-build-source.json" <<EOF
+{
+  "name": "$name",
+  "source": "$source_id",
+  "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+}
+
+install_managed_skill_file() {
+  local name="$1"
+  local skill_url="$2"
+  local source_id="$3"
+  local temp_dir
+
+  temp_dir="$(mktemp -d "/tmp/one-build-skill-${name}.XXXXXX")"
+  curl -fsSL "$skill_url" -o "$temp_dir/SKILL.md"
+  install_managed_skill_directory "$name" "$temp_dir" "$source_id"
+}
+
+expand_repo_archive() {
+  local repo="$1"
+  local destination="$2"
+  local zip_path
+
+  mkdir -p "$destination"
+  zip_path="$destination/$(printf '%s' "$repo" | tr '/' '-').zip"
+  curl -fL --show-error -o "$zip_path" "https://github.com/$repo/archive/refs/heads/main.zip"
+  unzip -q "$zip_path" -d "$destination"
+  find "$destination" -maxdepth 1 -type d -name '*-main' | head -n 1
+}
+
+sync_global_skills() {
+  log "正在同步 Codex 全局 skills"
+  local temp_root
+  local kepano_root
+  local visual_root
+  local name
+
+  temp_root="$(mktemp -d "/tmp/one-build-skills.XXXXXX")"
+
+  kepano_root="$(expand_repo_archive "kepano/obsidian-skills" "$temp_root/kepano")"
+  for name in defuddle obsidian-bases obsidian-cli obsidian-markdown; do
+    install_managed_skill_directory "$name" "$kepano_root/skills/$name" "https://github.com/kepano/obsidian-skills/tree/main/skills/$name"
+  done
+
+  visual_root="$(expand_repo_archive "axtonliu/axton-obsidian-visual-skills" "$temp_root/axtonliu")"
+  for name in excalidraw-diagram mermaid-visualizer obsidian-canvas-creator; do
+    install_managed_skill_directory "$name" "$visual_root/$name" "https://github.com/axtonliu/axton-obsidian-visual-skills/tree/main/$name"
+  done
+
+  install_managed_skill_file "llm-wiki" "$OWN_SKILL_BASE_URL/llm-wiki/SKILL.md" "https://github.com/NothingToDooo/one_build/tree/main/skills/llm-wiki"
+  log "全局 skills 已同步到：$(global_skills_root)"
+}
+
 ensure_obsidian_cli() {
   log "正在配置 Obsidian CLI"
   local cli_path="/usr/local/bin/obsidian"
@@ -341,6 +427,8 @@ main() {
   ensure_obsidian_cli
   install_llmwiki "$vault_path"
   deploy_llmwiki_workflow "$vault_path"
+  ensure_command unzip
+  sync_global_skills
   open_apps "$vault_path"
   log "完成"
 }
