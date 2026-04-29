@@ -15,7 +15,8 @@
 
 ## 通用约定
 
-- 文件名使用小写 slug，例如 `transformer-architecture.md`。
+- 面向用户阅读的 wiki 页面使用中文文件名，例如 `注意力机制.md`、`项目阶段总结.md`。
+- `raw/` 原始资料、提取 sidecar 和工具产物可以保留来源文件名，或使用稳定的英文 slug。
 - wiki 页面使用 YAML frontmatter。
 - 相关页面之间使用 `[[wikilinks]]`。
 - 每个新增 wiki 页面必须登记到 `index.md`。
@@ -83,14 +84,15 @@ status: raw | extracted | profiled | needs-ocr | failed
 
 ## 文件命名
 
+- 用户会直接阅读的 `entities/`、`concepts/`、`comparisons/`、`queries/`、`summaries/` 页面优先使用中文文件名。
 - 网页：`raw/articles/title-or-domain-YYYY.md`
 - PDF：`raw/papers/title-or-report-name.pdf` 和 `raw/papers/title-or-report-name.extracted.md`
 - Word：`raw/documents/title.docx` 和 `raw/documents/title.extracted.md`
 - 表格：`raw/tables/title.xlsx` 和 `raw/tables/title.profile.md`
 - 幻灯片：`raw/slides/title.pptx` 和 `raw/slides/title.extracted.md`
 - 图片：`raw/images/title.png` 和 `raw/images/title.ocr.md`
-- 查询：`queries/question-slug.md`
-- 综合总结：`summaries/topic-or-period.md`
+- 查询：`queries/用户问题摘要.md`
+- 综合总结：`summaries/主题或阶段总结.md`
 
 重名时添加短日期或序号，不要覆盖已有文件。
 
