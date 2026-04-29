@@ -7,8 +7,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
-$TemplateBaseUrl = "https://raw.githubusercontent.com/NothingToDooo/one_build/main/templates"
-$ManagedSkillsBaseUrl = "https://raw.githubusercontent.com/NothingToDooo/one_build/main/managed-skills"
+$RepoArchiveUrl = "https://codeload.github.com/NothingToDooo/one_build/zip/refs/heads/main"
+$script:OneBuildRepoRoot = $null
 
 function Write-Step {
     param([string]$Message)
@@ -18,6 +18,31 @@ function Write-Step {
 function Write-Warn {
     param([string]$Message)
     Write-Host "警告：$Message" -ForegroundColor Yellow
+}
+
+function Get-OneBuildRepoRoot {
+    if ($script:OneBuildRepoRoot -and (Test-Path -LiteralPath $script:OneBuildRepoRoot)) {
+        return $script:OneBuildRepoRoot
+    }
+
+    $archiveRoot = Join-Path $env:TEMP "one-build-repo"
+    $zipPath = Join-Path $archiveRoot "one_build-main.zip"
+    Remove-Item -LiteralPath $archiveRoot -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force -Path $archiveRoot | Out-Null
+
+    Write-Step "正在下载 one_build 安装资源包"
+    Invoke-WebRequest -UseBasicParsing -Uri $RepoArchiveUrl -OutFile $zipPath -TimeoutSec 180
+    Expand-Archive -LiteralPath $zipPath -DestinationPath $archiveRoot -Force
+
+    $repoRoot = Get-ChildItem -LiteralPath $archiveRoot -Directory |
+        Where-Object { $_.Name -like "one_build-*" } |
+        Select-Object -First 1
+    if (-not $repoRoot) {
+        throw "one_build 安装资源包解压后未找到仓库目录。"
+    }
+
+    $script:OneBuildRepoRoot = $repoRoot.FullName
+    return $script:OneBuildRepoRoot
 }
 
 function Test-Admin {
@@ -392,7 +417,7 @@ function Install-ObsidianExcalidrawPlugin {
 
 function Save-TemplateIfMissing {
     param(
-        [Parameter(Mandatory = $true)][string]$Url,
+        [Parameter(Mandatory = $true)][string]$SourcePath,
         [Parameter(Mandatory = $true)][string]$Path
     )
 
@@ -402,7 +427,7 @@ function Save-TemplateIfMissing {
     }
 
     Write-Step "正在写入模板：$Path"
-    Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $Path
+    Copy-Item -LiteralPath $SourcePath -Destination $Path -Force
 }
 
 function Deploy-LlmWikiWorkflow {
@@ -431,8 +456,10 @@ function Deploy-LlmWikiWorkflow {
     )
     New-Item -ItemType Directory -Force -Path $directories | Out-Null
 
+    $repoRoot = Get-OneBuildRepoRoot
+    $templatesDir = Join-Path $repoRoot "templates"
     foreach ($name in @("AGENTS.md", "SCHEMA.md", "index.md", "log.md")) {
-        Save-TemplateIfMissing -Url "$TemplateBaseUrl/$name" -Path (Join-Path $rawDir $name)
+        Save-TemplateIfMissing -SourcePath (Join-Path $templatesDir $name) -Path (Join-Path $rawDir $name)
     }
 }
 
@@ -469,27 +496,25 @@ function Install-ManagedSkillDirectory {
     } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $targetDir ".one-build-source.json") -Encoding UTF8
 }
 
-function Join-RawUrl {
-    param(
-        [Parameter(Mandatory = $true)][string]$BaseUrl,
-        [Parameter(Mandatory = $true)][string]$RelativePath
-    )
-
-    $segments = $RelativePath -split "/" | ForEach-Object { [uri]::EscapeDataString($_) }
-    return "$BaseUrl/$($segments -join '/')"
-}
-
 function Install-ManagedSkillFromOneBuild {
     param([Parameter(Mandatory = $true)][string]$Name)
+
+    $repoRoot = Get-OneBuildRepoRoot
+    $managedSkillDir = Join-Path (Join-Path $repoRoot "managed-skills") $Name
+    if (-not (Test-Path -LiteralPath $managedSkillDir)) {
+        throw "安装资源包中缺少 managed skill：$Name"
+    }
 
     $sourceDir = Join-Path $env:TEMP "one-build-managed-skill-$Name"
     Remove-Item -LiteralPath $sourceDir -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force -Path $sourceDir | Out-Null
 
-    Write-Step "正在下载 managed skill：$Name"
-    $skillBaseUrl = "$ManagedSkillsBaseUrl/$Name"
-    $manifestPath = Join-Path $sourceDir "MANIFEST.txt"
-    Invoke-WebRequest -UseBasicParsing -Uri "$skillBaseUrl/MANIFEST.txt" -OutFile $manifestPath -TimeoutSec 180
+    Write-Step "正在同步 managed skill：$Name"
+    $manifestPath = Join-Path $managedSkillDir "MANIFEST.txt"
+    if (-not (Test-Path -LiteralPath $manifestPath)) {
+        throw "managed skill 缺少 MANIFEST.txt：$Name"
+    }
+
     $files = Get-Content -LiteralPath $manifestPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     foreach ($relativePath in $files) {
         $targetPath = Join-Path $sourceDir ($relativePath -replace "/", [IO.Path]::DirectorySeparatorChar)
@@ -497,10 +522,12 @@ function Install-ManagedSkillFromOneBuild {
         if ($targetParent) {
             New-Item -ItemType Directory -Force -Path $targetParent | Out-Null
         }
-        $fileUrl = Join-RawUrl -BaseUrl $skillBaseUrl -RelativePath $relativePath
-        Invoke-WebRequest -UseBasicParsing -Uri $fileUrl -OutFile $targetPath -TimeoutSec 180
+        $sourcePath = Join-Path $managedSkillDir ($relativePath -replace "/", [IO.Path]::DirectorySeparatorChar)
+        if (-not (Test-Path -LiteralPath $sourcePath)) {
+            throw "managed skill 文件缺失：$Name/$relativePath"
+        }
+        Copy-Item -LiteralPath $sourcePath -Destination $targetPath -Force
     }
-    Remove-Item -LiteralPath $manifestPath -Force -ErrorAction SilentlyContinue
 
     Install-ManagedSkillDirectory -Name $Name -SourceDir $sourceDir -SourceId "https://github.com/NothingToDooo/one_build/tree/main/managed-skills/$Name"
 }

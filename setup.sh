@@ -2,8 +2,8 @@
 set -euo pipefail
 
 SKIP_OPEN_APPS=0
-TEMPLATE_BASE_URL="https://raw.githubusercontent.com/NothingToDooo/one_build/main/templates"
-MANAGED_SKILLS_BASE_URL="https://raw.githubusercontent.com/NothingToDooo/one_build/main/managed-skills"
+REPO_ARCHIVE_URL="https://codeload.github.com/NothingToDooo/one_build/zip/refs/heads/main"
+ONE_BUILD_REPO_ROOT=""
 
 for arg in "$@"; do
   case "$arg" in
@@ -32,6 +32,30 @@ log() {
 
 warn() {
   printf '警告：%s\n' "$1" >&2
+}
+
+ensure_one_build_repo_root() {
+  local archive_root
+  local zip_path
+  local repo_root
+
+  if [[ -n "$ONE_BUILD_REPO_ROOT" && -d "$ONE_BUILD_REPO_ROOT" ]]; then
+    return
+  fi
+
+  archive_root="$(mktemp -d "/tmp/one-build-repo.XXXXXX")"
+  zip_path="$archive_root/one_build-main.zip"
+  log "正在下载 one_build 安装资源包"
+  curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error -o "$zip_path" "$REPO_ARCHIVE_URL"
+  ditto -x -k "$zip_path" "$archive_root"
+
+  repo_root="$(find "$archive_root" -maxdepth 1 -type d -name 'one_build-*' | head -n 1)"
+  if [[ -z "$repo_root" || ! -d "$repo_root" ]]; then
+    echo "one_build 安装资源包解压后未找到仓库目录。" >&2
+    exit 1
+  fi
+
+  ONE_BUILD_REPO_ROOT="$repo_root"
 }
 
 require_macos() {
@@ -289,8 +313,8 @@ install_or_upgrade_obsidian() {
   install_dmg_app "Obsidian" "$(obsidian_download_url)"
 }
 
-download_template_if_missing() {
-  local url="$1"
+copy_template_if_missing() {
+  local source_path="$1"
   local path="$2"
 
   if [[ -f "$path" ]]; then
@@ -299,13 +323,15 @@ download_template_if_missing() {
   fi
 
   log "正在写入模板：$path"
-  curl -fsSL "$url" -o "$path"
+  cp "$source_path" "$path"
 }
 
 deploy_llmwiki_workflow() {
   local vault_path="$1"
   local wiki_dir="$vault_path/llmwiki"
   local raw_dir="$wiki_dir/raw"
+  local repo_root
+  local templates_dir
 
   log "正在部署 Codex LLM Wiki 工作流"
   mkdir -p \
@@ -324,10 +350,13 @@ deploy_llmwiki_workflow() {
     "$wiki_dir/问答" \
     "$wiki_dir/总结"
 
-  download_template_if_missing "$TEMPLATE_BASE_URL/AGENTS.md" "$raw_dir/AGENTS.md"
-  download_template_if_missing "$TEMPLATE_BASE_URL/SCHEMA.md" "$raw_dir/SCHEMA.md"
-  download_template_if_missing "$TEMPLATE_BASE_URL/index.md" "$raw_dir/index.md"
-  download_template_if_missing "$TEMPLATE_BASE_URL/log.md" "$raw_dir/log.md"
+  ensure_one_build_repo_root
+  repo_root="$ONE_BUILD_REPO_ROOT"
+  templates_dir="$repo_root/templates"
+  copy_template_if_missing "$templates_dir/AGENTS.md" "$raw_dir/AGENTS.md"
+  copy_template_if_missing "$templates_dir/SCHEMA.md" "$raw_dir/SCHEMA.md"
+  copy_template_if_missing "$templates_dir/index.md" "$raw_dir/index.md"
+  copy_template_if_missing "$templates_dir/log.md" "$raw_dir/log.md"
 }
 
 global_skills_root() {
@@ -365,24 +394,43 @@ EOF
 install_managed_skill_from_one_build() {
   local name="$1"
   local source_dir
+  local repo_root
+  local managed_skill_dir
   local manifest_path
   local relative_path
   local target_path
   local target_parent
+  local source_path
 
   source_dir="$(mktemp -d "/tmp/one-build-managed-skill-$name.XXXXXX")"
-  manifest_path="$source_dir/MANIFEST.txt"
-  log "正在下载 managed skill：$name"
-  curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error -o "$manifest_path" "$MANAGED_SKILLS_BASE_URL/$name/MANIFEST.txt"
+  ensure_one_build_repo_root
+  repo_root="$ONE_BUILD_REPO_ROOT"
+  managed_skill_dir="$repo_root/managed-skills/$name"
+  manifest_path="$managed_skill_dir/MANIFEST.txt"
+
+  if [[ ! -d "$managed_skill_dir" ]]; then
+    echo "安装资源包中缺少 managed skill：$name" >&2
+    exit 1
+  fi
+  if [[ ! -f "$manifest_path" ]]; then
+    echo "managed skill 缺少 MANIFEST.txt：$name" >&2
+    exit 1
+  fi
+
+  log "正在同步 managed skill：$name"
 
   while IFS= read -r relative_path || [[ -n "$relative_path" ]]; do
     [[ -n "$relative_path" ]] || continue
     target_path="$source_dir/$relative_path"
     target_parent="$(dirname "$target_path")"
     mkdir -p "$target_parent"
-    curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error -o "$target_path" "$MANAGED_SKILLS_BASE_URL/$name/$relative_path"
+    source_path="$managed_skill_dir/$relative_path"
+    if [[ ! -f "$source_path" ]]; then
+      echo "managed skill 文件缺失：$name/$relative_path" >&2
+      exit 1
+    fi
+    cp "$source_path" "$target_path"
   done < "$manifest_path"
-  rm -f "$manifest_path"
 
   install_managed_skill_directory "$name" "$source_dir" "https://github.com/NothingToDooo/one_build/tree/main/managed-skills/$name"
 }
