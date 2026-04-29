@@ -57,3 +57,4 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - 脚本不会删除已有的 Obsidian 仓库内容。
 - LLM Wiki 会创建或复用所选仓库中的 `llmwiki` 目录。
 - PyPI 包名是 `llmwiki`，安装后的命令名是 `llmbase`。
+- Obsidian CLI 需要 Obsidian 1.12.7+，并且 Obsidian 应用需要运行。脚本会尽量自动注册 CLI 到 PATH、启动 Obsidian 并执行 `obsidian version` 验证；如果验证失败，请在 Obsidian 的设置 -> 通用 中开启 `Command line interface`。

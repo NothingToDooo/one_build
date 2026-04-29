@@ -206,6 +206,32 @@ EOF
   llmbase --base-dir "$wiki_dir" stats || warn "llmbase stats 失败；请稍后检查配置和权限。"
 }
 
+ensure_obsidian_cli() {
+  log "正在配置 Obsidian CLI"
+  local cli_path="/usr/local/bin/obsidian"
+  local bundled_cli="/Applications/Obsidian.app/Contents/MacOS/obsidian-cli"
+
+  if ! command -v obsidian >/dev/null 2>&1; then
+    if [[ -x "$bundled_cli" ]]; then
+      sudo ln -sf "$bundled_cli" "$cli_path"
+    else
+      warn "未找到 Obsidian CLI。请确认已安装 Obsidian 1.12.7+，并在 Obsidian 设置 -> 通用 中开启 Command line interface。"
+      return
+    fi
+  fi
+
+  if ! pgrep -x "Obsidian" >/dev/null 2>&1; then
+    open -a "Obsidian" || warn "无法自动启动 Obsidian 来验证 CLI。"
+    sleep 5
+  fi
+
+  if obsidian version >/dev/null 2>&1; then
+    log "Obsidian CLI 已可用：$(obsidian version)"
+  else
+    warn "Obsidian CLI 暂不可用。请打开 Obsidian，在设置 -> 通用 中开启 Command line interface 后重试。"
+  fi
+}
+
 open_apps() {
   local vault_path="$1"
   if [[ "$SKIP_OPEN_APPS" -eq 1 ]]; then
@@ -227,6 +253,7 @@ main() {
   vault_path="$(choose_vault_folder)"
   install_or_upgrade_codex
   install_or_upgrade_obsidian
+  ensure_obsidian_cli
   install_llmwiki "$vault_path"
   open_apps "$vault_path"
   log "完成"

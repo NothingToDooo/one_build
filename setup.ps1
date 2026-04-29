@@ -77,6 +77,22 @@ function Refresh-Path {
     )
 }
 
+function Add-UserPath {
+    param([string]$Path)
+
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+
+    $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+    $parts = @($userPath -split [IO.Path]::PathSeparator | Where-Object { $_ })
+    if ($parts -notcontains $Path) {
+        $parts += $Path
+        [Environment]::SetEnvironmentVariable("PATH", ($parts -join [IO.Path]::PathSeparator), "User")
+    }
+    Add-ProcessPath @($Path)
+}
+
 function Test-Command {
     param([string]$Name)
     return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
@@ -268,6 +284,74 @@ paths:
     Invoke-LoggedCommand -FilePath "llmbase" -Arguments @("--base-dir", $wikiDir, "stats") -AllowFailure | Out-Null
 }
 
+function Find-ObsidianCli {
+    $command = Get-Command "obsidian" -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+
+    $command = Get-Command "Obsidian.com" -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+
+    $candidates = @(
+        (Join-Path $env:LOCALAPPDATA "Programs\Obsidian\Obsidian.com"),
+        (Join-Path $env:ProgramFiles "Obsidian\Obsidian.com")
+    )
+    if (${env:ProgramFiles(x86)}) {
+        $candidates += (Join-Path ${env:ProgramFiles(x86)} "Obsidian\Obsidian.com")
+    }
+
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate) {
+            return $candidate
+        }
+    }
+
+    return $null
+}
+
+function Ensure-ObsidianCli {
+    Write-Step "正在配置 Obsidian CLI"
+    $cliPath = Find-ObsidianCli
+    if (-not $cliPath) {
+        Write-Warn "未找到 Obsidian CLI。请确认已安装 Obsidian 1.12.7+，并在 Obsidian 设置 -> 通用 中开启 Command line interface。"
+        return
+    }
+
+    Add-UserPath -Path (Split-Path -Parent $cliPath)
+
+    if (-not (Get-Process -Name "Obsidian" -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+        try {
+            $obsidianExe = Join-Path (Split-Path -Parent $cliPath) "Obsidian.exe"
+            if (Test-Path -LiteralPath $obsidianExe) {
+                Start-Process -FilePath $obsidianExe -ErrorAction Stop
+            }
+            else {
+                Start-Process "obsidian://" -ErrorAction Stop
+            }
+            Start-Sleep -Seconds 5
+        }
+        catch {
+            Write-Warn "无法自动启动 Obsidian 来验证 CLI。原因：$($_.Exception.Message)"
+        }
+    }
+
+    try {
+        $versionOutput = (& $cliPath version 2>&1) -join "`n"
+        if ($LASTEXITCODE -eq 0) {
+            Write-Step "Obsidian CLI 已可用：$versionOutput"
+        }
+        else {
+            Write-Warn "Obsidian CLI 暂不可用。请打开 Obsidian，在设置 -> 通用 中开启 Command line interface 后重试。输出：$versionOutput"
+        }
+    }
+    catch {
+        Write-Warn "Obsidian CLI 验证失败。请打开 Obsidian，在设置 -> 通用 中开启 Command line interface 后重试。原因：$($_.Exception.Message)"
+    }
+}
+
 function Open-InstalledApps {
     param([string]$VaultPath)
 
@@ -335,6 +419,7 @@ try {
     $vaultPath = Select-VaultFolder
     Install-OrUpgradeWingetPackage -Name "Codex 应用" -Id "9PLM9XGG6VKS" -Source "msstore"
     Install-OrUpgradeWingetPackage -Name "Obsidian" -Id "Obsidian.Obsidian"
+    Ensure-ObsidianCli
     Install-LlmWiki -VaultPath $vaultPath
     try {
         Open-InstalledApps -VaultPath $vaultPath
