@@ -582,8 +582,8 @@ ensure_obsidian_cli() {
   fi
 
   if ! pgrep -x "Obsidian" >/dev/null 2>&1; then
-    open -a "Obsidian" || warn "无法自动启动 Obsidian 来验证 CLI。"
-    sleep 5
+    warn "Obsidian 未运行，已配置 Obsidian CLI 路径；跳过实时验证。"
+    return
   fi
 
   if obsidian version >/dev/null 2>&1; then

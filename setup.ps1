@@ -793,19 +793,8 @@ function Ensure-ObsidianCli {
     Add-UserPath -Path (Split-Path -Parent $cliPath)
 
     if (-not (Get-Process -Name "Obsidian" -ErrorAction SilentlyContinue | Select-Object -First 1)) {
-        try {
-            $obsidianExe = Join-Path (Split-Path -Parent $cliPath) "Obsidian.exe"
-            if (Test-Path -LiteralPath $obsidianExe) {
-                Start-Process -FilePath $obsidianExe -ErrorAction Stop
-            }
-            else {
-                Start-Process "obsidian://" -ErrorAction Stop
-            }
-            Start-Sleep -Seconds 5
-        }
-        catch {
-            Write-Warn "无法自动启动 Obsidian 来验证 CLI。原因：$($_.Exception.Message)"
-        }
+        Write-Warn "Obsidian 未运行，已配置 Obsidian CLI 路径；为避免从安装窗口启动并绑定 Obsidian，跳过实时验证。"
+        return
     }
 
     try {
@@ -863,17 +852,12 @@ function Open-InstalledApps {
 
         $indexPath = Join-Path $VaultPath "llmwiki\raw\index.md"
         if (Test-Path -LiteralPath $indexPath) {
-            Start-Process "obsidian://open?path=$([uri]::EscapeDataString((Resolve-Path -LiteralPath $indexPath).Path))" -ErrorAction Stop
+            $openUri = "obsidian://open?path=$([uri]::EscapeDataString((Resolve-Path -LiteralPath $indexPath).Path))"
+            Start-Process -FilePath "explorer.exe" -ArgumentList $openUri -ErrorAction Stop
             return
         }
 
-        $obsidianExe = Find-ObsidianExe
-        if ($obsidianExe) {
-            Start-Process -FilePath $obsidianExe -ErrorAction Stop
-            return
-        }
-
-        Start-Process "obsidian://" -ErrorAction Stop
+        Start-Process -FilePath "explorer.exe" -ArgumentList "obsidian://" -ErrorAction Stop
     }
     catch {
         Write-Warn "无法自动打开 Obsidian。请手动打开 Obsidian 并选择仓库：$VaultPath。原因：$($_.Exception.Message)"
