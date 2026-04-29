@@ -4,7 +4,7 @@
 
 ## 首要规则
 
-把 `raw/` 视为不可变原始资料，把 `entities/`、`concepts/`、`comparisons/`、`queries/` 视为 agent 维护的 wiki 页面。除非用户明确要求，不要删除、覆盖或重写原始资料。
+把 `raw/` 视为不可变原始资料，把 `entities/`、`concepts/`、`comparisons/`、`queries/`、`summaries/` 视为 agent 维护的 wiki 页面。除非用户明确要求，不要删除、覆盖或重写原始资料。
 
 全局 skill 只负责定位这个目录。进入本目录后，以本文件和 `SCHEMA.md` 为准。
 
@@ -33,6 +33,7 @@
 - `concepts/`：概念、方法、原则、主张、主题。
 - `comparisons/`：对比分析。
 - `queries/`：值得保留的复杂问答。
+- `summaries/`：跨来源、跨主题的综合总结和阶段性综述。
 - `_archive/`：过时但需要保留的页面。
 - `index.md`：所有 wiki 页面的目录。
 - `log.md`：追加式操作记录。
@@ -103,7 +104,7 @@
 3. 阅读相关 wiki 页面和必要的原始资料。
 4. 综合回答时明确区分事实、推断、争议和低置信度内容。
 5. 回答中链接到相关 wiki 页面和原始资料路径。
-6. 如果答案复杂、以后可能复用，保存到 `queries/`；如果本质是横向比较，保存到 `comparisons/`。
+6. 如果答案复杂、以后可能复用，保存到 `queries/`；如果本质是横向比较，保存到 `comparisons/`；如果是跨来源综述或阶段性总结，保存到 `summaries/`。
 7. 不保存普通查找类问题。
 8. 在 `log.md` 追加查询记录，说明是否沉淀成页面。
 

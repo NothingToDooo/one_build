@@ -1,6 +1,6 @@
 # One Build 一键配置
 
-用于给少量用户一键部署 Codex 应用、Obsidian、Obsidian CLI、`defuddle`，以及一套 agent 可直接读取的 LLM Wiki 工作流模板。
+用于给少量用户一键部署 Codex 应用、Obsidian、`defuddle`，并尝试配置 Obsidian CLI，以及一套 agent 可直接读取的 LLM Wiki 工作流模板。
 
 脚本发布在 GitHub Raw。用户只需要复制对应系统的一条命令执行。
 
@@ -47,7 +47,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - Windows 检查并补齐 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
 - macOS 检查并补齐 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
 - 安装或复用 Codex 应用和 Obsidian。
-- 配置并验证 Obsidian CLI。
+- 尝试配置并验证 Obsidian CLI；不可用时安装继续，后续 agent 优先直接编辑文件。
 - 要求用户通过 GUI 选择 Obsidian 仓库目录。
 - 在用户选择的仓库中创建或复用 `llmwiki/`。
 - 部署 Codex LLM Wiki 工作流模板。
@@ -78,10 +78,11 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
     ├── concepts
     ├── comparisons
     ├── queries
+    ├── summaries
     └── _archive
 ```
 
-`raw/` 放原始资料和提取 sidecar；`entities/`、`concepts/`、`comparisons/`、`queries/` 是 Codex 维护的 wiki 页面。`AGENTS.md` 和 `SCHEMA.md` 包含导入、重新导入、批量处理、审计、归档和日志轮转规则。脚本不会覆盖已有模板文件，也不会删除用户已有 Markdown。
+`raw/` 放原始资料和提取 sidecar；`entities/`、`concepts/`、`comparisons/`、`queries/`、`summaries/` 是 Codex 维护的 wiki 页面。`AGENTS.md` 和 `SCHEMA.md` 包含导入、重新导入、批量处理、审计、归档和日志轮转规则。脚本不会覆盖已有模板文件，也不会删除用户已有 Markdown。
 
 ## 给 Codex 的使用方式
 
@@ -117,6 +118,6 @@ Codex 会先读取根目录 `AGENTS.md`，再进入 `llmwiki/AGENTS.md`、`SCHEM
 ## 边界
 
 - Codex 登录不会自动化。
-- Obsidian CLI 需要 Obsidian 应用正在运行。
+- Obsidian CLI 是 best-effort 配置；如果不可用，agent 仍可直接编辑 vault 内文件。
 - 这不是 MCP 项目；主要入口是 Codex 读取 `AGENTS.md` 后按本地文件工作流操作。
 - 默认不安装 `llmwiki/llmbase` Python 包，也不安装 `llm-wiki-compiler`，因为它们都需要单独配置 LLM API 才能发挥主要能力。

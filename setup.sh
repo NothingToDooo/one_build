@@ -311,6 +311,7 @@ deploy_llmwiki_workflow() {
     "$wiki_dir/concepts" \
     "$wiki_dir/comparisons" \
     "$wiki_dir/queries" \
+    "$wiki_dir/summaries" \
     "$wiki_dir/_archive"
 
   download_template_if_missing "$TEMPLATE_BASE_URL/AGENTS.md" "$wiki_dir/AGENTS.md"
@@ -479,6 +480,7 @@ main() {
   ensure_command curl
   ensure_command hdiutil
   ensure_command osascript
+  ensure_command unzip
   ensure_bun
   local vault_path
   vault_path="$(choose_vault_folder)"
@@ -488,7 +490,6 @@ main() {
   deploy_llmwiki_workflow "$vault_path"
   install_defuddle
   install_obsidian_excalidraw_plugin "$vault_path"
-  ensure_command unzip
   sync_global_skills "$vault_path"
   open_apps "$vault_path"
   log "完成"

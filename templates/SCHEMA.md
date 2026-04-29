@@ -90,6 +90,7 @@ status: raw | extracted | profiled | needs-ocr | failed
 - 幻灯片：`raw/slides/title.pptx` 和 `raw/slides/title.extracted.md`
 - 图片：`raw/images/title.png` 和 `raw/images/title.ocr.md`
 - 查询：`queries/question-slug.md`
+- 综合总结：`summaries/topic-or-period.md`
 
 重名时添加短日期或序号，不要覆盖已有文件。
 
@@ -122,6 +123,7 @@ status: raw | extracted | profiled | needs-ocr | failed
 - 不要为路过式提及、脚注式名字、无关背景信息创建页面。
 - 只有复杂、以后可能复用、重新推导成本较高的回答才保存到 `queries/`。
 - 横向比较、选型、差异分析优先放到 `comparisons/`。
+- 跨多个来源、多个主题或一段时间的综合结论优先放到 `summaries/`。
 
 ## Entity 页面
 
@@ -172,6 +174,19 @@ Query 页面保存值得复用的复杂回答。
 - 使用过的原始资料
 - 置信度
 - 后续问题
+
+## Summary 页面
+
+Summary 页面保存跨来源、跨主题或阶段性的综合总结。
+
+建议包含：
+
+- 总结范围
+- 核心结论
+- 支撑来源
+- 涉及的实体和概念
+- 争议和低置信度内容
+- 下次更新条件
 
 ## 表格资料规则
 

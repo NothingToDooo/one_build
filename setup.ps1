@@ -382,6 +382,7 @@ function Deploy-LlmWikiWorkflow {
         (Join-Path $wikiDir "concepts"),
         (Join-Path $wikiDir "comparisons"),
         (Join-Path $wikiDir "queries"),
+        (Join-Path $wikiDir "summaries"),
         (Join-Path $wikiDir "_archive")
     )
     New-Item -ItemType Directory -Force -Path $directories | Out-Null
