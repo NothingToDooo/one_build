@@ -604,7 +604,7 @@ function Ensure-ObsidianCli {
 
     try {
         $versionOutput = (& $cliPath version 2>&1) -join "`n"
-        if ($LASTEXITCODE -eq 0) {
+        if (($LASTEXITCODE -eq 0) -and ($versionOutput -notmatch "not enabled|turn it on|Command line interface is not enabled")) {
             Write-Step "Obsidian CLI 已可用：$versionOutput"
         }
         else {
@@ -626,7 +626,7 @@ function Open-InstalledApps {
     Write-Step "正在打开 Codex 和 Obsidian"
 
     $codexRunning = Get-Process -ErrorAction SilentlyContinue | Where-Object {
-        $_.ProcessName -ieq "Codex" -or ($_.Path -and $_.Path -match "\\OpenAI\.Codex_")
+        $_.ProcessName -ieq "Codex" -or $_.ProcessName -like "OpenAI.Codex*"
     } | Select-Object -First 1
     if ($codexRunning) {
         Write-Step "Codex 已在运行，跳过打开"
