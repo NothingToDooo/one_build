@@ -169,8 +169,13 @@ function Test-WingetPackageInstalled {
         [string]$Source
     )
 
-    $args = @("list", "--id", $Id, "--accept-source-agreements")
-    if ($Source) {
+    if ($Source -eq "msstore") {
+        $args = @("list", $Id, "--source", $Source, "--accept-source-agreements")
+    }
+    else {
+        $args = @("list", "--id", $Id, "--accept-source-agreements")
+    }
+    if ($Source -and $Source -ne "msstore") {
         $args += @("--source", $Source)
     }
     $output = (& winget @args 2>$null) -join "`n"
@@ -184,19 +189,26 @@ function Install-OrUpgradeWingetPackage {
         [string]$Source
     )
 
-    $commonArgs = @("--id", $Id, "--accept-source-agreements", "--accept-package-agreements")
+    if ($Source -eq "msstore") {
+        $packageArgs = @($Id)
+    }
+    else {
+        $packageArgs = @("--id", $Id)
+    }
+
+    $commonArgs = @("--accept-source-agreements", "--accept-package-agreements")
     if ($Source) {
         $commonArgs += @("--source", $Source)
     }
 
     if (Test-WingetPackageInstalled -Id $Id -Source $Source) {
         Write-Step "$Name 已安装，正在尝试升级"
-        Invoke-LoggedCommand -FilePath "winget" -Arguments (@("upgrade") + $commonArgs) -AllowFailure | Out-Null
+        Invoke-LoggedCommand -FilePath "winget" -Arguments (@("upgrade") + $packageArgs + $commonArgs) -AllowFailure | Out-Null
         return
     }
 
     Write-Step "正在安装 $Name"
-    Invoke-LoggedCommand -FilePath "winget" -Arguments (@("install") + $commonArgs)
+    Invoke-LoggedCommand -FilePath "winget" -Arguments (@("install") + $packageArgs + $commonArgs)
 }
 
 function Install-LlmWiki {
