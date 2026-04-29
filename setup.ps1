@@ -20,6 +20,20 @@ function Write-Warn {
     Write-Host "警告：$Message" -ForegroundColor Yellow
 }
 
+function Wait-ForCloseKey {
+    param([Parameter(Mandatory = $true)][string]$Message)
+
+    Write-Host "$Message..." -NoNewline
+    try {
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        Write-Host ""
+    }
+    catch {
+        Write-Host ""
+        cmd.exe /c "pause >nul"
+    }
+}
+
 function Write-Utf8NoBom {
     param(
         [Parameter(Mandatory = $true)][string]$Path,
@@ -915,10 +929,10 @@ finally {
     }
     if (-not $NoPause) {
         if ($success) {
-            Read-Host "已完成，按回车关闭窗口"
+            Wait-ForCloseKey -Message "已完成，按任意键关闭窗口"
         }
         else {
-            Read-Host "按回车关闭窗口"
+            Wait-ForCloseKey -Message "按任意键关闭窗口"
         }
     }
 }

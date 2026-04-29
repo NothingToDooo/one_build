@@ -28,7 +28,7 @@ if not "%ERRORLEVEL%"=="0" (
 
 echo.
 echo Starting setup...
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_PATH%" %*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_PATH%" %* -NoPause
 set "EXIT_CODE=%ERRORLEVEL%"
 
 if not "%EXIT_CODE%"=="0" (
