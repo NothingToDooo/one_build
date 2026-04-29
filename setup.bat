@@ -1,6 +1,14 @@
 @echo off
 setlocal
 
+if not "%ONE_BUILD_CHILD%"=="1" (
+  set "ONE_BUILD_CHILD=1"
+  set "ONE_BUILD_BAT=%~f0"
+  set "ONE_BUILD_ARGS=%*"
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$argList = '/c \"\"' + $env:ONE_BUILD_BAT + '\" ' + $env:ONE_BUILD_ARGS + '\"'; Start-Process -FilePath 'cmd.exe' -ArgumentList $argList -Verb RunAs"
+  exit /b 0
+)
+
 set "SCRIPT_URL=https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.ps1"
 set "SCRIPT_PATH=%TEMP%\one-build-setup.ps1"
 
@@ -14,16 +22,6 @@ if errorlevel 1 (
   echo Download failed. Please check your network and send this error to the maintainer.
   pause
   exit /b 1
-)
-
-net session >nul 2>&1
-if not "%ERRORLEVEL%"=="0" (
-  echo.
-  echo Requesting administrator permission...
-  set "ONE_BUILD_PS1=%SCRIPT_PATH%"
-  set "ONE_BUILD_ARGS=%*"
-  powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "$argList = '-NoProfile -ExecutionPolicy Bypass -File \"' + $env:ONE_BUILD_PS1 + '\" ' + $env:ONE_BUILD_ARGS; Start-Process -FilePath 'powershell.exe' -ArgumentList $argList -Verb RunAs"
-  exit /b 0
 )
 
 echo.
