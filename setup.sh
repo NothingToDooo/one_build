@@ -167,9 +167,12 @@ install_obsidian_excalidraw_plugin() {
 
   log "正在安装 Obsidian Excalidraw 插件"
   mkdir -p "$plugin_dir"
-  curl -fsSL "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/main.js" -o "$plugin_dir/main.js"
-  curl -fsSL "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/manifest.json" -o "$plugin_dir/manifest.json"
-  curl -fsSL "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/styles.css" -o "$plugin_dir/styles.css"
+  log "正在下载 Excalidraw 插件文件：main.js"
+  curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/main.js" -o "$plugin_dir/main.js"
+  log "正在下载 Excalidraw 插件文件：manifest.json"
+  curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/manifest.json" -o "$plugin_dir/manifest.json"
+  log "正在下载 Excalidraw 插件文件：styles.css"
+  curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/styles.css" -o "$plugin_dir/styles.css"
   enable_obsidian_community_plugin "$vault_path" "$plugin_id"
 }
 
@@ -424,7 +427,9 @@ expand_repo_archive() {
 
   mkdir -p "$destination"
   zip_path="$destination/$(printf '%s' "$repo" | tr '/' '-').zip"
-  curl -fL --show-error -o "$zip_path" "https://github.com/$repo/archive/refs/heads/main.zip"
+  log "正在下载 skill 仓库：$repo"
+  curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error -o "$zip_path" "https://github.com/$repo/archive/refs/heads/main.zip"
+  log "正在解压 skill 仓库：$repo"
   unzip -q "$zip_path" -d "$destination"
   find "$destination" -maxdepth 1 -type d -name '*-main' | head -n 1
 }

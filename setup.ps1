@@ -383,7 +383,8 @@ function Install-ObsidianExcalidrawPlugin {
     New-Item -ItemType Directory -Force -Path $pluginDir | Out-Null
     foreach ($file in @("main.js", "manifest.json", "styles.css")) {
         $url = "https://github.com/zsviczian/obsidian-excalidraw-plugin/releases/latest/download/$file"
-        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile (Join-Path $pluginDir $file)
+        Write-Step "正在下载 Excalidraw 插件文件：$file"
+        Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile (Join-Path $pluginDir $file) -TimeoutSec 180
     }
     Enable-ObsidianCommunityPlugin -VaultPath $VaultPath -PluginId $pluginId
 }
@@ -524,9 +525,15 @@ function Expand-RepoArchive {
     New-Item -ItemType Directory -Force -Path $Destination | Out-Null
     $zipPath = Join-Path $Destination (($Repo -replace "/", "-") + ".zip")
     $url = "https://github.com/$Repo/archive/refs/heads/main.zip"
-    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $zipPath
+    Write-Step "正在下载 skill 仓库：$Repo"
+    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $zipPath -TimeoutSec 180
+    Write-Step "正在解压 skill 仓库：$Repo"
     Expand-Archive -LiteralPath $zipPath -DestinationPath $Destination -Force
-    return (Get-ChildItem -LiteralPath $Destination -Directory | Where-Object { $_.Name -like "*-main" } | Select-Object -First 1).FullName
+    $expanded = (Get-ChildItem -LiteralPath $Destination -Directory | Where-Object { $_.Name -like "*-main" } | Select-Object -First 1).FullName
+    if (-not $expanded) {
+        throw "skill 仓库解压失败：$Repo"
+    }
+    return $expanded
 }
 
 function Install-LlmWikiGlobalSkill {
