@@ -58,7 +58,8 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - Windows 检查并补齐 `winget`。
 - Windows 检查并补齐 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
 - macOS 检查并补齐 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
-- 安装或复用 Codex 应用和 Obsidian。
+- Windows 上未安装 Codex 时打开 Microsoft Store 页面，由商店负责下载；已安装则复用。
+- 安装或复用 Obsidian。
 - 尝试配置并验证 Obsidian CLI；不可用时安装继续，后续 agent 优先直接编辑文件。
 - 要求用户通过 GUI 选择 Obsidian 仓库目录。
 - 在用户选择的仓库中创建或复用 `llmwiki/`。

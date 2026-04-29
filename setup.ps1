@@ -223,6 +223,40 @@ function Install-OrUpgradeWingetPackage {
     Invoke-LoggedCommand -FilePath "winget" -Arguments (@("install") + $packageArgs + $commonArgs)
 }
 
+function Open-MicrosoftStoreProduct {
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$ProductId
+    )
+
+    $storeUri = "ms-windows-store://pdp/?productid=$ProductId"
+    Write-Step "正在打开 Microsoft Store：$Name"
+    try {
+        Start-Process $storeUri -ErrorAction Stop
+    }
+    catch {
+        Write-Warn "无法自动打开 Microsoft Store。请手动打开商店并搜索 $Name。原因：$($_.Exception.Message)"
+    }
+}
+
+function Ensure-CodexApp {
+    $productId = "9PLM9XGG6VKS"
+    if (Test-WingetPackageInstalled -Id $productId -Source "msstore") {
+        if ($UpgradeTools) {
+            Write-Step "Codex 应用已安装，正在打开 Microsoft Store 检查更新"
+            Open-MicrosoftStoreProduct -Name "Codex 应用" -ProductId $productId
+        }
+        else {
+            Write-Step "Codex 应用已安装，跳过"
+        }
+        return
+    }
+
+    Write-Step "Codex 应用未安装，将由 Microsoft Store 负责下载"
+    Open-MicrosoftStoreProduct -Name "Codex 应用" -ProductId $productId
+    Write-Warn "请在 Microsoft Store 中点击安装 Codex。脚本会继续配置 Obsidian 和 LLM Wiki；如果 Codex 尚未下载完成，最后请从开始菜单手动打开。"
+}
+
 function Ensure-Bun {
     Refresh-Path
     if (Test-Command "bun") {
@@ -647,7 +681,7 @@ try {
     Ensure-Winget
     Ensure-Bun
     $vaultPath = Select-VaultFolder
-    Install-OrUpgradeWingetPackage -Name "Codex 应用" -Id "9PLM9XGG6VKS" -Source "msstore"
+    Ensure-CodexApp
     Install-OrUpgradeWingetPackage -Name "Obsidian" -Id "Obsidian.Obsidian"
     Ensure-ObsidianCli
     Deploy-LlmWikiWorkflow -VaultPath $vaultPath
