@@ -2,11 +2,15 @@
 
 用于给少量用户一键部署 Codex 应用、Obsidian、`defuddle`，并尝试配置 Obsidian CLI，以及一套 agent 可直接读取的 LLM Wiki 工作流模板。
 
-脚本发布在 GitHub Raw。用户只需要复制对应系统的一条命令执行。
+脚本发布在 GitHub Raw。Windows 用户可以下载并双击 `.bat` 文件启动；macOS 用户复制一条命令执行。
 
 ## Windows
 
-在 PowerShell 中执行：
+推荐方式：下载 [setup.bat](https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.bat)，然后双击运行。双击后会直接请求管理员权限，再自动下载并执行最新 `setup.ps1`。
+
+如果浏览器把 `.bat` 内容直接打开，可以右键页面另存为 `setup.bat` 后再双击。
+
+备用方式：在 PowerShell 中执行：
 
 ```powershell
 $u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.ps1"; $p=Join-Path $env:TEMP "one-build-setup.ps1"; Invoke-RestMethod $u -OutFile $p; powershell -NoProfile -ExecutionPolicy Bypass -File $p
