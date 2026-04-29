@@ -697,19 +697,14 @@ function Open-InstalledApps {
         }
     }
 
-    $obsidianRunning = Get-Process -Name "Obsidian" -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($obsidianRunning) {
-        Write-Step "Obsidian 已在运行，跳过打开"
-        return
-    }
-
+    Refresh-Path
     try {
-        Start-Process "obsidian://open?path=$([uri]::EscapeDataString($VaultPath))" -ErrorAction Stop
+        $obsidian = Get-Command "Obsidian.exe" -ErrorAction Stop
+        Start-Process -FilePath $obsidian.Source -ArgumentList "`"$VaultPath`"" -ErrorAction Stop
     }
     catch {
         try {
-            $obsidian = Get-Command "Obsidian.exe" -ErrorAction Stop
-            Start-Process -FilePath $obsidian.Source -ArgumentList "`"$VaultPath`"" -ErrorAction Stop
+            Start-Process "obsidian://open?vault=$([uri]::EscapeDataString($VaultPath))" -ErrorAction Stop
         }
         catch {
             Write-Warn "无法自动打开 Obsidian。请手动打开 Obsidian 并选择仓库：$VaultPath。原因：$($_.Exception.Message)"
