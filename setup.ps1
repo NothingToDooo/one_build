@@ -257,6 +257,21 @@ function Ensure-CodexApp {
     Write-Warn "请在 Microsoft Store 中点击安装 Codex。脚本会继续配置 Obsidian 和 LLM Wiki；如果 Codex 尚未下载完成，最后请从开始菜单手动打开。"
 }
 
+function Install-BunWithOfficialInstaller {
+    Write-Step "正在使用 Bun 官方安装器安装 Bun"
+    $installerPath = Join-Path $env:TEMP "one-build-bun-install.ps1"
+    try {
+        Invoke-WebRequest -UseBasicParsing -Uri "https://bun.sh/install.ps1" -OutFile $installerPath
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerPath
+        if ($LASTEXITCODE -ne 0) {
+            throw "Bun 官方安装器退出码：$LASTEXITCODE"
+        }
+    }
+    catch {
+        throw "Bun 官方安装器失败：$($_.Exception.Message)"
+    }
+}
+
 function Ensure-Bun {
     Refresh-Path
     if (Test-Command "bun") {
@@ -264,7 +279,13 @@ function Ensure-Bun {
         return
     }
 
-    Install-OrUpgradeWingetPackage -Name "Bun" -Id "Oven-sh.Bun"
+    try {
+        Install-OrUpgradeWingetPackage -Name "Bun" -Id "Oven-sh.Bun"
+    }
+    catch {
+        Write-Warn "winget 安装 Bun 失败，将改用 Bun 官方安装器。原因：$($_.Exception.Message)"
+        Install-BunWithOfficialInstaller
+    }
     Refresh-Path
     if (-not (Test-Command "bun")) {
         throw "Bun 安装已完成，但当前 PATH 中仍找不到 bun。"
