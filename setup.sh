@@ -116,8 +116,13 @@ install_defuddle() {
 
   log "正在通过 bun 安装 defuddle"
   if ! run_with_timeout 600 bun install -g defuddle; then
-    echo "defuddle 安装超时或失败。请检查网络后重试。" >&2
-    exit 1
+    warn "defuddle 安装失败，将使用临时 cache 重试。"
+    local retry_cache
+    retry_cache="$(mktemp -d "/tmp/one-build-bun-cache.XXXXXX")"
+    if ! BUN_INSTALL_CACHE_DIR="$retry_cache" run_with_timeout 600 bun install -g defuddle --cache-dir "$retry_cache"; then
+      echo "defuddle 安装超时或失败。请检查网络后重试。" >&2
+      exit 1
+    fi
   fi
   refresh_path
   if ! command -v defuddle >/dev/null 2>&1; then

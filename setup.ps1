@@ -313,7 +313,23 @@ function Install-Defuddle {
         Write-Step "正在通过 bun 安装 defuddle"
     }
 
-    Invoke-LoggedCommand -FilePath "bun" -Arguments @("install", "-g", "defuddle")
+    try {
+        Invoke-LoggedCommand -FilePath "bun" -Arguments @("install", "-g", "defuddle")
+    }
+    catch {
+        Write-Warn "bun 安装 defuddle 失败，将使用临时 cache 重试。原因：$($_.Exception.Message)"
+        $retryCache = Join-Path $env:TEMP "one-build-bun-cache"
+        Remove-Item -LiteralPath $retryCache -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force -Path $retryCache | Out-Null
+        $previousCache = $env:BUN_INSTALL_CACHE_DIR
+        try {
+            $env:BUN_INSTALL_CACHE_DIR = $retryCache
+            Invoke-LoggedCommand -FilePath "bun" -Arguments @("install", "-g", "defuddle", "--cache-dir", $retryCache)
+        }
+        finally {
+            $env:BUN_INSTALL_CACHE_DIR = $previousCache
+        }
+    }
     Add-UserPath -Path (Join-Path $env:USERPROFILE ".bun\bin")
     Refresh-Path
     if (-not (Test-Command "defuddle")) {
