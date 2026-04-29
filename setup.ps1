@@ -74,6 +74,7 @@ function Refresh-Path {
     [Environment]::SetEnvironmentVariable("PATH", "$machine$([IO.Path]::PathSeparator)$user", "Process")
     Add-ProcessPath @(
         (Join-Path $env:USERPROFILE ".local\bin"),
+        (Join-Path $env:USERPROFILE ".bun\bin"),
         (Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps")
     )
 }
@@ -237,6 +238,42 @@ function Install-OrUpgradeWingetPackage {
     Invoke-LoggedCommand -FilePath "winget" -Arguments (@("install") + $packageArgs + $commonArgs)
 }
 
+function Ensure-Bun {
+    Refresh-Path
+    if (Test-Command "bun") {
+        Write-Step "bun 已可用"
+        return
+    }
+
+    Install-OrUpgradeWingetPackage -Name "Bun" -Id "Oven-sh.Bun"
+    Refresh-Path
+    if (-not (Test-Command "bun")) {
+        throw "Bun 安装已完成，但当前 PATH 中仍找不到 bun。"
+    }
+}
+
+function Install-Defuddle {
+    Refresh-Path
+    if ((Test-Command "defuddle") -and (-not $UpgradeTools)) {
+        Write-Step "defuddle 已安装，跳过升级"
+        return
+    }
+
+    if ($UpgradeTools -and (Test-Command "defuddle")) {
+        Write-Step "defuddle 已安装，正在通过 bun 升级"
+    }
+    else {
+        Write-Step "正在通过 bun 安装 defuddle"
+    }
+
+    Invoke-LoggedCommand -FilePath "bun" -Arguments @("install", "-g", "defuddle")
+    Add-UserPath -Path (Join-Path $env:USERPROFILE ".bun\bin")
+    Refresh-Path
+    if (-not (Test-Command "defuddle")) {
+        throw "defuddle 安装已完成，但当前 PATH 中仍找不到 defuddle。"
+    }
+}
+
 function Install-LlmWiki {
     param([string]$VaultPath)
 
@@ -384,6 +421,12 @@ function Install-ManagedSkillDirectory {
     }
 
     Copy-Item -LiteralPath $SourceDir -Destination $targetDir -Recurse -Force
+    if ($Name -eq "defuddle") {
+        $skillPath = Join-Path $targetDir "SKILL.md"
+        $skillText = Get-Content -LiteralPath $skillPath -Raw
+        $skillText = $skillText.Replace('If not installed: `npm install -g defuddle`', '如果未安装，请使用 `bun install -g defuddle`。')
+        Set-Content -LiteralPath $skillPath -Value $skillText -Encoding UTF8
+    }
     @{
         name = $Name
         source = $SourceId
@@ -598,12 +641,14 @@ catch {
 try {
     Ensure-Winget
     Ensure-Uv
+    Ensure-Bun
     $vaultPath = Select-VaultFolder
     Install-OrUpgradeWingetPackage -Name "Codex 应用" -Id "9PLM9XGG6VKS" -Source "msstore"
     Install-OrUpgradeWingetPackage -Name "Obsidian" -Id "Obsidian.Obsidian"
     Ensure-ObsidianCli
     Install-LlmWiki -VaultPath $vaultPath
     Deploy-LlmWikiWorkflow -VaultPath $vaultPath
+    Install-Defuddle
     Sync-GlobalSkills -VaultPath $vaultPath
     try {
         Open-InstalledApps -VaultPath $vaultPath

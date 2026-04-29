@@ -44,7 +44,8 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 
 - Windows 自动请求管理员权限。
 - Windows 检查并补齐 `winget` 和 `uv`。
-- macOS 检查并补齐 `uv`。
+- Windows 检查并补齐 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
+- macOS 检查并补齐 `uv` 和 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
 - 安装或复用 Codex 应用和 Obsidian。
 - 配置并验证 Obsidian CLI。
 - 安装或复用 `llmwiki`，实际可执行命令是 `llmbase`。
@@ -97,7 +98,7 @@ Codex 会先读取根目录 `AGENTS.md`，再进入 `llmwiki/AGENTS.md`、`SCHEM
 脚本会安装或更新这些 skill 到 `~/.agents/skills`：
 
 - `llm-wiki`：安装时生成的入口 skill，只记录用户选择的 vault 路径，并指引 Codex 读取 `llmwiki/AGENTS.md`。
-- `defuddle`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/defuddle)。
+- `defuddle`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/defuddle)，脚本会把安装提示改为 `bun install -g defuddle`。
 - `obsidian-bases`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-bases)。
 - `obsidian-cli`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-cli)。
 - `obsidian-markdown`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-markdown)。

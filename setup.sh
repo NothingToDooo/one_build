@@ -41,7 +41,7 @@ require_macos() {
 }
 
 refresh_path() {
-  export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+  export PATH="$HOME/.local/bin:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 }
 
 ensure_command() {
@@ -64,6 +64,38 @@ ensure_uv() {
   refresh_path
   if ! command -v uv >/dev/null 2>&1; then
     echo "uv 安装已完成，但当前 PATH 中仍找不到 uv。" >&2
+    exit 1
+  fi
+}
+
+ensure_bun() {
+  refresh_path
+  if command -v bun >/dev/null 2>&1; then
+    log "bun 已可用"
+    return
+  fi
+
+  log "正在使用 Bun 官方安装器安装 bun"
+  curl -fsSL https://bun.sh/install | bash
+  refresh_path
+  if ! command -v bun >/dev/null 2>&1; then
+    echo "bun 安装已完成，但当前 PATH 中仍找不到 bun。" >&2
+    exit 1
+  fi
+}
+
+install_defuddle() {
+  refresh_path
+  if command -v defuddle >/dev/null 2>&1; then
+    log "defuddle 已安装，跳过升级"
+    return
+  fi
+
+  log "正在通过 bun 安装 defuddle"
+  bun install -g defuddle
+  refresh_path
+  if ! command -v defuddle >/dev/null 2>&1; then
+    echo "defuddle 安装已完成，但当前 PATH 中仍找不到 defuddle。" >&2
     exit 1
   fi
 }
@@ -311,6 +343,9 @@ install_managed_skill_directory() {
   fi
 
   cp -R "$source_dir" "$target_dir"
+  if [[ "$name" == "defuddle" ]]; then
+    perl -0pi -e 's/If not installed: `npm install -g defuddle`/如果未安装，请使用 `bun install -g defuddle`。/g' "$target_dir/SKILL.md"
+  fi
   cat > "$target_dir/.one-build-source.json" <<EOF
 {
   "name": "$name",
@@ -437,6 +472,7 @@ main() {
   ensure_command hdiutil
   ensure_command osascript
   ensure_uv
+  ensure_bun
   local vault_path
   vault_path="$(choose_vault_folder)"
   install_or_upgrade_codex
@@ -444,6 +480,7 @@ main() {
   ensure_obsidian_cli
   install_llmwiki "$vault_path"
   deploy_llmwiki_workflow "$vault_path"
+  install_defuddle
   ensure_command unzip
   sync_global_skills "$vault_path"
   open_apps "$vault_path"
