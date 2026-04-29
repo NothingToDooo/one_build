@@ -853,11 +853,11 @@ function Open-InstalledApps {
         $indexPath = Join-Path $VaultPath "llmwiki\raw\index.md"
         if (Test-Path -LiteralPath $indexPath) {
             $openUri = "obsidian://open?path=$([uri]::EscapeDataString((Resolve-Path -LiteralPath $indexPath).Path))"
-            Start-Process -FilePath "explorer.exe" -ArgumentList $openUri -ErrorAction Stop
+            Start-Process -FilePath "rundll32.exe" -ArgumentList @("url.dll,FileProtocolHandler", $openUri) -ErrorAction Stop
             return
         }
 
-        Start-Process -FilePath "explorer.exe" -ArgumentList "obsidian://" -ErrorAction Stop
+        Start-Process -FilePath "rundll32.exe" -ArgumentList @("url.dll,FileProtocolHandler", "obsidian://") -ErrorAction Stop
     }
     catch {
         Write-Warn "无法自动打开 Obsidian。请手动打开 Obsidian 并选择仓库：$VaultPath。原因：$($_.Exception.Message)"
