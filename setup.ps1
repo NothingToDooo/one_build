@@ -315,7 +315,12 @@ try {
     Install-OrUpgradeWingetPackage -Name "Codex 应用" -Id "9PLM9XGG6VKS" -Source "msstore"
     Install-OrUpgradeWingetPackage -Name "Obsidian" -Id "Obsidian.Obsidian"
     Install-LlmWiki -VaultPath $vaultPath
-    Open-InstalledApps -VaultPath $vaultPath
+    try {
+        Open-InstalledApps -VaultPath $vaultPath
+    }
+    catch {
+        Write-Warn "自动打开应用失败，但安装配置已经完成。请手动打开 Codex 和 Obsidian。原因：$($_.Exception.Message)"
+    }
     $success = $true
     Write-Step "完成。日志文件：$logPath"
 }
