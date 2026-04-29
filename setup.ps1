@@ -20,6 +20,16 @@ function Write-Warn {
     Write-Host "警告：$Message" -ForegroundColor Yellow
 }
 
+function Write-Utf8NoBom {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Value
+    )
+
+    $encoding = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($Path, $Value, $encoding)
+}
+
 function Get-OneBuildRepoRoot {
     if ($script:OneBuildRepoRoot -and (Test-Path -LiteralPath $script:OneBuildRepoRoot)) {
         return $script:OneBuildRepoRoot
@@ -425,7 +435,7 @@ function Register-ObsidianVault {
         $vaults | Add-Member -NotePropertyName $vaultId -NotePropertyValue $vaultEntry -Force
     }
 
-    $config | ConvertTo-Json -Depth 10 -Compress | Set-Content -LiteralPath $configPath -Encoding UTF8
+    Write-Utf8NoBom -Path $configPath -Value ($config | ConvertTo-Json -Depth 10 -Compress)
 }
 
 function Install-BunWithOfficialInstaller {
@@ -528,7 +538,7 @@ function Enable-ObsidianCommunityPlugin {
         $plugins += $PluginId
     }
 
-    ConvertTo-Json -InputObject $plugins | Set-Content -LiteralPath $pluginsPath -Encoding UTF8
+    Write-Utf8NoBom -Path $pluginsPath -Value (ConvertTo-Json -InputObject $plugins)
 }
 
 function Install-ObsidianExcalidrawPlugin {
@@ -625,13 +635,14 @@ function Install-ManagedSkillDirectory {
         $skillPath = Join-Path $targetDir "SKILL.md"
         $skillText = Get-Content -LiteralPath $skillPath -Raw
         $skillText = $skillText.Replace('If not installed: `npm install -g defuddle`', '如果未安装，请使用 `bun install -g defuddle`。')
-        Set-Content -LiteralPath $skillPath -Value $skillText -Encoding UTF8
+        Write-Utf8NoBom -Path $skillPath -Value $skillText
     }
-    @{
+    $sourceInfo = @{
         name = $Name
         source = $SourceId
         installed_at = (Get-Date).ToString("o")
-    } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $targetDir ".one-build-source.json") -Encoding UTF8
+    } | ConvertTo-Json
+    Write-Utf8NoBom -Path (Join-Path $targetDir ".one-build-source.json") -Value $sourceInfo
 }
 
 function Install-ManagedSkillFromOneBuild {
@@ -706,7 +717,7 @@ description: 定位并进入用户的 LLM Wiki 或 Obsidian 知识库。适用�
 如果用户明确指定了另一个 vault，则以用户指定路径为准，并重复读取该 vault 下的 `llmwiki/raw/` 规则文件。
 '@
     $skillContent = $skillContent.Replace("__VAULT_PATH__", $VaultPath).Replace("__WIKI_PATH__", $wikiPath)
-    Set-Content -LiteralPath (Join-Path $tempDir "SKILL.md") -Value $skillContent -Encoding UTF8
+    Write-Utf8NoBom -Path (Join-Path $tempDir "SKILL.md") -Value $skillContent
 
     Install-ManagedSkillDirectory -Name "llm-wiki" -SourceDir $tempDir -SourceId "generated-by-one_build:$wikiPath"
 }
