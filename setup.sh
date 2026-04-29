@@ -3,6 +3,7 @@ set -euo pipefail
 
 SKIP_OPEN_APPS=0
 TEMPLATE_BASE_URL="https://raw.githubusercontent.com/NothingToDooo/one_build/main/templates"
+MANAGED_SKILLS_BASE_URL="https://raw.githubusercontent.com/NothingToDooo/one_build/main/managed-skills"
 
 for arg in "$@"; do
   case "$arg" in
@@ -353,15 +354,17 @@ install_managed_skill_directory() {
     perl -0pi -e 's/If not installed: `npm install -g defuddle`/如果未安装，请使用 `bun install -g defuddle`。/g' "$target_dir/SKILL.md"
   fi
   if [[ "$name" == "excalidraw-diagram" ]]; then
-    local tmp_skill="$target_dir/SKILL.md.tmp"
-    cat > "$tmp_skill" <<'EOF'
+    if ! grep -q '## 安装前置条件' "$target_dir/SKILL.md"; then
+      local tmp_skill="$target_dir/SKILL.md.tmp"
+      cat > "$tmp_skill" <<'EOF'
 ## 安装前置条件
 
 Obsidian 模式需要 vault 内已安装并启用社区插件 `obsidian-excalidraw-plugin`。one_build 安装脚本会自动下载并启用该插件；如果当前 vault 不是 one_build 选择的 vault，首次使用前先检查 `.obsidian/plugins/obsidian-excalidraw-plugin/manifest.json` 和 `.obsidian/community-plugins.json`。
 
 EOF
-    cat "$target_dir/SKILL.md" >> "$tmp_skill"
-    mv "$tmp_skill" "$target_dir/SKILL.md"
+      cat "$target_dir/SKILL.md" >> "$tmp_skill"
+      mv "$tmp_skill" "$target_dir/SKILL.md"
+    fi
   fi
   cat > "$target_dir/.one-build-source.json" <<EOF
 {
@@ -372,18 +375,29 @@ EOF
 EOF
 }
 
-expand_repo_archive() {
-  local repo="$1"
-  local destination="$2"
-  local zip_path
+install_managed_skill_from_one_build() {
+  local name="$1"
+  local source_dir
+  local manifest_path
+  local relative_path
+  local target_path
+  local target_parent
 
-  mkdir -p "$destination"
-  zip_path="$destination/$(printf '%s' "$repo" | tr '/' '-').zip"
-  log "正在下载 skill 仓库：$repo"
-  curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error -o "$zip_path" "https://github.com/$repo/archive/refs/heads/main.zip"
-  log "正在解压 skill 仓库：$repo"
-  unzip -q "$zip_path" -d "$destination"
-  find "$destination" -maxdepth 1 -type d -name '*-main' | head -n 1
+  source_dir="$(mktemp -d "/tmp/one-build-managed-skill-$name.XXXXXX")"
+  manifest_path="$source_dir/MANIFEST.txt"
+  log "正在下载 managed skill：$name"
+  curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error -o "$manifest_path" "$MANAGED_SKILLS_BASE_URL/$name/MANIFEST.txt"
+
+  while IFS= read -r relative_path || [[ -n "$relative_path" ]]; do
+    [[ -n "$relative_path" ]] || continue
+    target_path="$source_dir/$relative_path"
+    target_parent="$(dirname "$target_path")"
+    mkdir -p "$target_parent"
+    curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error -o "$target_path" "$MANAGED_SKILLS_BASE_URL/$name/$relative_path"
+  done < "$manifest_path"
+  rm -f "$manifest_path"
+
+  install_managed_skill_directory "$name" "$source_dir" "https://github.com/NothingToDooo/one_build/tree/main/managed-skills/$name"
 }
 
 install_llmwiki_global_skill() {
@@ -427,21 +441,13 @@ EOF
 sync_global_skills() {
   local vault_path="$1"
   log "正在同步 Codex 全局 skills"
-  local temp_root
-  local kepano_root
-  local visual_root
   local name
-
-  temp_root="$(mktemp -d "/tmp/one-build-skills.XXXXXX")"
-
-  kepano_root="$(expand_repo_archive "kepano/obsidian-skills" "$temp_root/kepano")"
   for name in defuddle obsidian-bases obsidian-cli obsidian-markdown; do
-    install_managed_skill_directory "$name" "$kepano_root/skills/$name" "https://github.com/kepano/obsidian-skills/tree/main/skills/$name"
+    install_managed_skill_from_one_build "$name"
   done
 
-  visual_root="$(expand_repo_archive "axtonliu/axton-obsidian-visual-skills" "$temp_root/axtonliu")"
   for name in excalidraw-diagram mermaid-visualizer obsidian-canvas-creator; do
-    install_managed_skill_directory "$name" "$visual_root/$name" "https://github.com/axtonliu/axton-obsidian-visual-skills/tree/main/$name"
+    install_managed_skill_from_one_build "$name"
   done
 
   install_llmwiki_global_skill "$vault_path"
@@ -490,7 +496,6 @@ main() {
   ensure_command curl
   ensure_command hdiutil
   ensure_command osascript
-  ensure_command unzip
   ensure_bun
   local vault_path
   vault_path="$(choose_vault_folder)"

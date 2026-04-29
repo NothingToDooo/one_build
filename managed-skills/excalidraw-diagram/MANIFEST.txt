@@ -1,0 +1,2 @@
+﻿references/excalidraw-schema.md
+SKILL.md

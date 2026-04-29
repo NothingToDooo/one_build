@@ -8,6 +8,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $TemplateBaseUrl = "https://raw.githubusercontent.com/NothingToDooo/one_build/main/templates"
+$ManagedSkillsBaseUrl = "https://raw.githubusercontent.com/NothingToDooo/one_build/main/managed-skills"
 
 function Write-Step {
     param([string]$Message)
@@ -464,13 +465,15 @@ function Install-ManagedSkillDirectory {
     if ($Name -eq "excalidraw-diagram") {
         $skillPath = Join-Path $targetDir "SKILL.md"
         $skillText = Get-Content -LiteralPath $skillPath -Raw
-        $prefix = @'
+        if ($skillText -notmatch "## 安装前置条件") {
+            $prefix = @'
 ## 安装前置条件
 
 Obsidian 模式需要 vault 内已安装并启用社区插件 `obsidian-excalidraw-plugin`。one_build 安装脚本会自动下载并启用该插件；如果当前 vault 不是 one_build 选择的 vault，首次使用前先检查 `.obsidian/plugins/obsidian-excalidraw-plugin/manifest.json` 和 `.obsidian/community-plugins.json`。
 
 '@
-        Set-Content -LiteralPath $skillPath -Value ($prefix + $skillText) -Encoding UTF8
+            Set-Content -LiteralPath $skillPath -Value ($prefix + $skillText) -Encoding UTF8
+        }
     }
     @{
         name = $Name
@@ -479,24 +482,40 @@ Obsidian 模式需要 vault 内已安装并启用社区插件 `obsidian-excalidr
     } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $targetDir ".one-build-source.json") -Encoding UTF8
 }
 
-function Expand-RepoArchive {
+function Join-RawUrl {
     param(
-        [Parameter(Mandatory = $true)][string]$Repo,
-        [Parameter(Mandatory = $true)][string]$Destination
+        [Parameter(Mandatory = $true)][string]$BaseUrl,
+        [Parameter(Mandatory = $true)][string]$RelativePath
     )
 
-    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
-    $zipPath = Join-Path $Destination (($Repo -replace "/", "-") + ".zip")
-    $url = "https://github.com/$Repo/archive/refs/heads/main.zip"
-    Write-Step "正在下载 skill 仓库：$Repo"
-    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $zipPath -TimeoutSec 180
-    Write-Step "正在解压 skill 仓库：$Repo"
-    Expand-Archive -LiteralPath $zipPath -DestinationPath $Destination -Force
-    $expanded = (Get-ChildItem -LiteralPath $Destination -Directory | Where-Object { $_.Name -like "*-main" } | Select-Object -First 1).FullName
-    if (-not $expanded) {
-        throw "skill 仓库解压失败：$Repo"
+    $segments = $RelativePath -split "/" | ForEach-Object { [uri]::EscapeDataString($_) }
+    return "$BaseUrl/$($segments -join '/')"
+}
+
+function Install-ManagedSkillFromOneBuild {
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    $sourceDir = Join-Path $env:TEMP "one-build-managed-skill-$Name"
+    Remove-Item -LiteralPath $sourceDir -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force -Path $sourceDir | Out-Null
+
+    Write-Step "正在下载 managed skill：$Name"
+    $skillBaseUrl = "$ManagedSkillsBaseUrl/$Name"
+    $manifestPath = Join-Path $sourceDir "MANIFEST.txt"
+    Invoke-WebRequest -UseBasicParsing -Uri "$skillBaseUrl/MANIFEST.txt" -OutFile $manifestPath -TimeoutSec 180
+    $files = Get-Content -LiteralPath $manifestPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    foreach ($relativePath in $files) {
+        $targetPath = Join-Path $sourceDir ($relativePath -replace "/", [IO.Path]::DirectorySeparatorChar)
+        $targetParent = Split-Path -Parent $targetPath
+        if ($targetParent) {
+            New-Item -ItemType Directory -Force -Path $targetParent | Out-Null
+        }
+        $fileUrl = Join-RawUrl -BaseUrl $skillBaseUrl -RelativePath $relativePath
+        Invoke-WebRequest -UseBasicParsing -Uri $fileUrl -OutFile $targetPath -TimeoutSec 180
     }
-    return $expanded
+    Remove-Item -LiteralPath $manifestPath -Force -ErrorAction SilentlyContinue
+
+    Install-ManagedSkillDirectory -Name $Name -SourceDir $sourceDir -SourceId "https://github.com/NothingToDooo/one_build/tree/main/managed-skills/$Name"
 }
 
 function Install-LlmWikiGlobalSkill {
@@ -544,18 +563,11 @@ function Sync-GlobalSkills {
     param([Parameter(Mandatory = $true)][string]$VaultPath)
 
     Write-Step "正在同步 Codex 全局 skills"
-    $tempRoot = Join-Path $env:TEMP "one-build-skills"
-    Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
-    New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-
-    $kepanoRoot = Expand-RepoArchive -Repo "kepano/obsidian-skills" -Destination (Join-Path $tempRoot "kepano")
     foreach ($name in @("defuddle", "obsidian-bases", "obsidian-cli", "obsidian-markdown")) {
-        Install-ManagedSkillDirectory -Name $name -SourceDir (Join-Path $kepanoRoot "skills\$name") -SourceId "https://github.com/kepano/obsidian-skills/tree/main/skills/$name"
+        Install-ManagedSkillFromOneBuild -Name $name
     }
-
-    $visualRoot = Expand-RepoArchive -Repo "axtonliu/axton-obsidian-visual-skills" -Destination (Join-Path $tempRoot "axtonliu")
     foreach ($name in @("excalidraw-diagram", "mermaid-visualizer", "obsidian-canvas-creator")) {
-        Install-ManagedSkillDirectory -Name $name -SourceDir (Join-Path $visualRoot $name) -SourceId "https://github.com/axtonliu/axton-obsidian-visual-skills/tree/main/$name"
+        Install-ManagedSkillFromOneBuild -Name $name
     }
 
     Install-LlmWikiGlobalSkill -VaultPath $VaultPath

@@ -112,7 +112,7 @@ Codex 通过全局 `llm-wiki` skill 定位到所选 vault 后，会进入 `llmwi
 
 ## 同步的全局 skills
 
-脚本会安装或更新这些 skill 到 `~/.agents/skills`：
+脚本会安装或更新这些 skill 到 `~/.agents/skills`。这些 skill 固化在本仓库的 `managed-skills/` 中，安装时只下载需要的 skill 文件，不再拉取上游整个 GitHub 仓库 zip。
 
 - `llm-wiki`：安装时生成的入口 skill，只记录用户选择的 vault 路径，并指引 Codex 读取 `llmwiki/raw/AGENTS.md`。
 - `defuddle`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/defuddle)，脚本会把安装提示改为 `bun install -g defuddle`。

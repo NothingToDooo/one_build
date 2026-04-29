@@ -1,0 +1,5 @@
+﻿assets/template-freeform-grouped.canvas
+assets/template-mindmap-simple.canvas
+references/canvas-spec.md
+references/layout-algorithms.md
+SKILL.md
