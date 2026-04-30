@@ -1,6 +1,6 @@
 # One Build 一键配置
 
-用于给少量用户一键部署 Codex 应用、Obsidian、`defuddle`，并尝试配置 Obsidian CLI，以及一套 agent 可直接读取的 LLM Wiki 工作流模板。
+用于给少量用户一键部署 Codex 应用、Obsidian、`defuddle`、Microsoft MarkItDown，并尝试配置 Obsidian CLI，以及一套 agent 可直接读取的 LLM Wiki 工作流模板。
 
 脚本发布在 GitHub Raw。Windows 用户可以下载并双击 `.bat` 文件启动；macOS 用户可以下载并双击 `.command` 文件启动，或复制一条命令执行。
 
@@ -64,6 +64,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - Windows 检查并补齐 `winget`。
 - Windows 检查并补齐 `bun`：优先用 `winget`，失败时自动回退到 Bun 官方 PowerShell 安装器，然后用 `bun install -g defuddle` 安装 `defuddle`。
 - macOS 检查并补齐 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
+- Windows 和 macOS 检查并补齐 `uv`，然后用 `uv tool install --upgrade "markitdown[all]"` 安装 Microsoft MarkItDown。
 - Windows 上未安装 Codex 时打开 Microsoft Store 页面，由商店负责下载；已安装则复用。
 - macOS 上未安装 Codex 时下载官方对应架构版本；已安装则复用。
 - 安装或复用 Obsidian；已安装时默认跳过升级。
@@ -124,6 +125,7 @@ Codex 通过全局 `llm-wiki` skill 定位到所选 vault 后，会进入 `llmwi
 
 - `llm-wiki`：安装时生成的入口 skill，只记录用户选择的 vault 路径，并指引 Codex 读取 `llmwiki/raw/AGENTS.md`。
 - `defuddle`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/defuddle)，脚本会把安装提示改为 `bun install -g defuddle`。
+- `markitdown`：本仓库定义的 Microsoft MarkItDown 使用 skill，用于把 PDF、Word、PPT、Excel、HTML、图片等资料转换成 Markdown sidecar 后导入 LLM Wiki。
 - `obsidian-bases`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-bases)。
 - `obsidian-cli`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-cli)。
 - `obsidian-markdown`：来自 [kepano/obsidian-skills](https://github.com/kepano/obsidian-skills/tree/main/skills/obsidian-markdown)。
@@ -141,3 +143,4 @@ Codex 通过全局 `llm-wiki` skill 定位到所选 vault 后，会进入 `llmwi
 - Obsidian CLI 是 best-effort 配置；如果不可用，agent 仍可直接编辑 vault 内文件。
 - 这不是 MCP 项目；主要入口是全局 `llm-wiki` skill 定位 vault 后按本地文件工作流操作。
 - 默认不安装 `llmwiki/llmbase` Python 包，也不安装 `llm-wiki-compiler`，因为它们都需要单独配置 LLM API 才能发挥主要能力。
+- MarkItDown 只负责本地文件转 Markdown，不负责调用 LLM 生成结论；结论沉淀仍由 agent 按 `llmwiki/raw/AGENTS.md` 和 `SCHEMA.md` 完成。

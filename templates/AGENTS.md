@@ -72,14 +72,24 @@
 ## 不同资料类型
 
 - URL：优先用 `defuddle` 抽取正文，保存到 `raw/articles/`，保留原始 URL、标题、抓取日期和 sha256。
-- PDF：原文件放 `raw/papers/`。能提取文本时生成 `.extracted.md`；不能提取时标记 `status: needs-ocr`，不要编造内容。
-- Word：原文件放 `raw/documents/`，提取正文到 `.extracted.md`，保留标题、章节和页码线索。
-- 表格：原文件放 `raw/tables/`，先生成 `.profile.md`，再决定是否创建概念、实体或比较页。
-- 幻灯片：原文件放 `raw/slides/`，提取每页标题、正文、备注和图表说明到 `.extracted.md`。
-- 图片或扫描件：原文件放 `raw/images/`，能 OCR 时生成 `.ocr.md`；不能 OCR 时生成简短说明并标记 `needs-ocr`。
+- PDF：原文件放 `raw/papers/`。优先用 MarkItDown 生成 `.extracted.md`；不能提取时标记 `status: needs-ocr`，不要编造内容。
+- Word：原文件放 `raw/documents/`，优先用 MarkItDown 提取正文到 `.extracted.md`，保留标题、章节和页码线索。
+- 表格：原文件放 `raw/tables/`，优先用 MarkItDown 生成 `.extracted.md`，再生成 `.profile.md`，最后决定是否创建概念、实体或比较页。
+- 幻灯片：原文件放 `raw/slides/`，优先用 MarkItDown 提取每页标题、正文、备注和图表说明到 `.extracted.md`。
+- 图片或扫描件：原文件放 `raw/images/`，优先用 MarkItDown 尝试提取文字或元信息；能 OCR 时生成 `.ocr.md`，不能 OCR 时生成简短说明并标记 `needs-ocr`。
 - 粘贴文本：按内容类型放入对应目录，并注明来源是用户粘贴、粘贴时间和上下文。
 
 表格 profile 至少包含：文件名、sheet 名、行列数、字段列表、字段类型、缺失值、枚举值、时间范围、可能的主键、关键指标、样例行和数据质量问题。不要把大表全文塞进 wiki 页面。
+
+## 文件转 Markdown
+
+如果本机可用 `markitdown`，处理非 Markdown 文件时优先使用：
+
+```bash
+markitdown "原始文件路径" > "提取结果路径.md"
+```
+
+转换结果只作为 raw sidecar 和后续摘要的依据。不要因为 MarkItDown 成功输出了 Markdown，就把整份长文档全文塞进 `实体/`、`概念/`、`对比/`、`问答/` 或 `总结/` 页面。
 
 ## 批量资料处理
 

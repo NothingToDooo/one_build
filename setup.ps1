@@ -487,6 +487,31 @@ function Ensure-Bun {
     }
 }
 
+function Install-UvWithOfficialInstaller {
+    Write-Step "正在使用 Astral 官方安装器安装 uv"
+    $installerPath = Join-Path $env:TEMP "one-build-uv-install.ps1"
+    Invoke-WebRequest -UseBasicParsing -Uri "https://astral.sh/uv/install.ps1" -OutFile $installerPath
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installerPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "uv 官方安装器退出码：$LASTEXITCODE"
+    }
+}
+
+function Ensure-Uv {
+    Refresh-Path
+    if (Test-Command "uv") {
+        Write-Step "uv 已可用"
+        return
+    }
+
+    Install-UvWithOfficialInstaller
+    Add-UserPath -Path (Join-Path $env:USERPROFILE ".local\bin")
+    Refresh-Path
+    if (-not (Test-Command "uv")) {
+        throw "uv 安装已完成，但当前 PATH 中仍找不到 uv。"
+    }
+}
+
 function Install-Defuddle {
     Refresh-Path
     if ((Test-Command "defuddle") -and (-not $UpgradeTools)) {
@@ -522,6 +547,28 @@ function Install-Defuddle {
     Refresh-Path
     if (-not (Test-Command "defuddle")) {
         throw "defuddle 安装已完成，但当前 PATH 中仍找不到 defuddle。"
+    }
+}
+
+function Install-MarkItDown {
+    Refresh-Path
+    if ((Test-Command "markitdown") -and (-not $UpgradeTools)) {
+        Write-Step "MarkItDown 已安装，跳过升级"
+        return
+    }
+
+    if ($UpgradeTools -and (Test-Command "markitdown")) {
+        Write-Step "MarkItDown 已安装，正在通过 uv 升级"
+    }
+    else {
+        Write-Step "正在通过 uv 安装 MarkItDown"
+    }
+
+    Invoke-LoggedCommand -FilePath "uv" -Arguments @("tool", "install", "--upgrade", "markitdown[all]")
+    Add-UserPath -Path (Join-Path $env:USERPROFILE ".local\bin")
+    Refresh-Path
+    if (-not (Test-Command "markitdown")) {
+        throw "MarkItDown 安装已完成，但当前 PATH 中仍找不到 markitdown。"
     }
 }
 
@@ -740,7 +787,7 @@ function Sync-GlobalSkills {
     param([Parameter(Mandatory = $true)][string]$VaultPath)
 
     Write-Step "正在同步 Codex 全局 skills"
-    foreach ($name in @("defuddle", "obsidian-bases", "obsidian-cli", "obsidian-markdown")) {
+    foreach ($name in @("defuddle", "markitdown", "obsidian-bases", "obsidian-cli", "obsidian-markdown")) {
         Install-ManagedSkillFromOneBuild -Name $name
     }
     foreach ($name in @("excalidraw-diagram", "mermaid-visualizer", "obsidian-canvas-creator")) {
@@ -878,6 +925,7 @@ catch {
 try {
     Ensure-Winget
     Ensure-Bun
+    Ensure-Uv
     $vaultPath = Select-VaultFolder
     Ensure-ObsidianApp
     Deploy-LlmWikiWorkflow -VaultPath $vaultPath
@@ -885,6 +933,7 @@ try {
     Register-ObsidianVault -VaultPath $vaultPath
     Ensure-ObsidianCli
     Install-Defuddle
+    Install-MarkItDown
     Sync-GlobalSkills -VaultPath $vaultPath
     Ensure-CodexApp
     try {

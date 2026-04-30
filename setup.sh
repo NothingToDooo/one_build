@@ -18,7 +18,7 @@ for arg in "$@"; do
       cat <<'EOF'
 用法：bash ./setup.sh [--skip-open-apps] [--upgrade-tools]
 
-安装或复用 Codex 应用、Obsidian、bun、defuddle 和 LLM Wiki 工作流模板。
+安装或复用 Codex 应用、Obsidian、bun、uv、defuddle、MarkItDown 和 LLM Wiki 工作流模板。
 Obsidian 仓库目录会通过 macOS 文件夹选择器指定。
 EOF
       exit 0
@@ -136,6 +136,31 @@ ensure_bun() {
   fi
 }
 
+ensure_uv() {
+  refresh_path
+  if command -v uv >/dev/null 2>&1; then
+    log "uv 已可用"
+    return
+  fi
+
+  local installer
+  installer="$(mktemp "/tmp/one-build-uv-install.XXXXXX.sh")"
+  log "正在使用 Astral 官方安装器安装 uv"
+  if ! curl -fL --connect-timeout 20 --max-time 180 --retry 2 --show-error -o "$installer" https://astral.sh/uv/install.sh; then
+    echo "uv 安装器下载失败。请检查网络，稍后重试。" >&2
+    exit 1
+  fi
+  if ! run_with_timeout 600 sh "$installer"; then
+    echo "uv 安装超时或失败。请检查网络后重试。" >&2
+    exit 1
+  fi
+  refresh_path
+  if ! command -v uv >/dev/null 2>&1; then
+    echo "uv 安装已完成，但当前 PATH 中仍找不到 uv。" >&2
+    exit 1
+  fi
+}
+
 install_defuddle() {
   refresh_path
   if command -v defuddle >/dev/null 2>&1 && [[ "$UPGRADE_TOOLS" -eq 0 ]]; then
@@ -160,6 +185,29 @@ install_defuddle() {
   refresh_path
   if ! command -v defuddle >/dev/null 2>&1; then
     echo "defuddle 安装已完成，但当前 PATH 中仍找不到 defuddle。" >&2
+    exit 1
+  fi
+}
+
+install_markitdown() {
+  refresh_path
+  if command -v markitdown >/dev/null 2>&1 && [[ "$UPGRADE_TOOLS" -eq 0 ]]; then
+    log "MarkItDown 已安装，跳过升级"
+    return
+  fi
+
+  if command -v markitdown >/dev/null 2>&1; then
+    log "MarkItDown 已安装，正在通过 uv 升级"
+  else
+    log "正在通过 uv 安装 MarkItDown"
+  fi
+  if ! run_with_timeout 900 uv tool install --upgrade "markitdown[all]"; then
+    echo "MarkItDown 安装超时或失败。请检查网络后重试。" >&2
+    exit 1
+  fi
+  refresh_path
+  if ! command -v markitdown >/dev/null 2>&1; then
+    echo "MarkItDown 安装已完成，但当前 PATH 中仍找不到 markitdown。" >&2
     exit 1
   fi
 }
@@ -552,7 +600,7 @@ sync_global_skills() {
   local vault_path="$1"
   log "正在同步 Codex 全局 skills"
   local name
-  for name in defuddle obsidian-bases obsidian-cli obsidian-markdown; do
+  for name in defuddle markitdown obsidian-bases obsidian-cli obsidian-markdown; do
     install_managed_skill_from_one_build "$name"
   done
 
@@ -619,6 +667,7 @@ main() {
   ensure_command hdiutil
   ensure_command osascript
   ensure_bun
+  ensure_uv
   local vault_path
   vault_path="$(choose_vault_folder)"
   install_or_upgrade_obsidian
@@ -627,6 +676,7 @@ main() {
   register_obsidian_vault "$vault_path"
   ensure_obsidian_cli
   install_defuddle
+  install_markitdown
   sync_global_skills "$vault_path"
   install_or_upgrade_codex
   open_apps "$vault_path"
