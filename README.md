@@ -64,7 +64,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - Windows 检查并补齐 `winget`。
 - Windows 检查并补齐 `bun`：优先用 `winget`，失败时自动回退到 Bun 官方 PowerShell 安装器，然后用 `bun install -g defuddle` 安装 `defuddle`。
 - macOS 检查并补齐 `bun`，然后用 `bun install -g defuddle` 安装 `defuddle`。
-- Windows 和 macOS 检查并补齐 `uv`，然后用 `uv tool install --upgrade "markitdown[all]"` 安装 Microsoft MarkItDown。
+- Windows 和 macOS 检查并补齐 `uv`，再通过 `uv python install 3.14` 准备 Python 3.14 最新补丁版，然后用 `uv tool install --upgrade "markitdown[all]"` 安装 Microsoft MarkItDown。
 - Windows 上未安装 Codex 时打开 Microsoft Store 页面，由商店负责下载；已安装则复用。
 - macOS 上未安装 Codex 时下载官方对应架构版本；已安装则复用。
 - 安装或复用 Obsidian；已安装时默认跳过升级。

@@ -96,7 +96,7 @@ markitdown "原始文件路径" > "提取结果路径.md"
 
 ## 工具脚本
 
-如果 `raw/tools/llmwiki_tool.py` 存在，优先把可确定的检查和批量修改交给它完成。agent 负责判断“应该怎么改”，工具只负责验证路径、执行机械改动和输出结构化结果。
+安装脚本会部署 `raw/tools/llmwiki_tool.py`。优先把可确定的检查和批量修改交给它完成。你负责判断“应该怎么改”，工具只负责验证路径、执行机械改动和输出结构化结果。
 
 常用只读命令：
 
@@ -117,7 +117,7 @@ Excel 精确 profile 需要 pandas/openpyxl 时，用：
 uv run --with pandas --with openpyxl llmwiki/raw/tools/llmwiki_tool.py table-profile "llmwiki/raw/tables/example.xlsx" --json
 ```
 
-需要改 frontmatter、更新 index、修断链、归档重复页或合并页面时，先由 agent 写 JSON plan 到 `llmwiki/raw/plans/`，再 dry-run 校验，最后执行：
+需要改 frontmatter、更新 index、修断链、归档重复页或合并页面时，先写 JSON plan 到 `llmwiki/raw/plans/`，再 dry-run 校验，最后执行：
 
 ```bash
 uv run llmwiki/raw/tools/llmwiki_tool.py plan-validate "llmwiki/raw/plans/example.json" --json
