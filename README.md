@@ -107,7 +107,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
     │   └── assets
 ```
 
-`实体/`、`概念/`、`对比/`、`问答/`、`总结/` 是用户直接阅读的 wiki 页面；`raw/` 放原始资料、提取 sidecar、规则文件、索引、日志和工具脚本。`raw/AGENTS.md` 和 `raw/SCHEMA.md` 包含导入、重新导入、批量处理、审计、归档和日志轮转规则。脚本不会覆盖已有模板文件，也不会删除用户已有 Markdown；`raw/tools/llmwiki_tool.py` 属于安装器管理文件，会随脚本刷新到最新版本。
+`实体/`、`概念/`、`对比/`、`问答/`、`总结/` 是用户直接阅读的 wiki 页面；`raw/` 放原始资料、提取 sidecar、规则文件、索引、日志和工具脚本。`raw/AGENTS.md` 和 `raw/SCHEMA.md` 包含导入、重新导入、批量处理、审计、归档和日志轮转规则。脚本会刷新安装器管理的 `raw/AGENTS.md` 和 `raw/tools/llmwiki_tool.py`；`raw/SCHEMA.md`、`raw/index.md`、`raw/log.md` 已存在时不会覆盖，也不会删除用户已有 Markdown。
 
 ## 给 Codex 的使用方式
 

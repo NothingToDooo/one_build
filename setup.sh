@@ -486,7 +486,8 @@ deploy_llmwiki_workflow() {
   ensure_one_build_repo_root
   repo_root="$ONE_BUILD_REPO_ROOT"
   templates_dir="$repo_root/templates"
-  copy_template_if_missing "$templates_dir/AGENTS.md" "$raw_dir/AGENTS.md"
+  cp "$templates_dir/AGENTS.md" "$raw_dir/AGENTS.md"
+  log "已同步 Wiki 工作流规则：$raw_dir/AGENTS.md"
   copy_template_if_missing "$templates_dir/SCHEMA.md" "$raw_dir/SCHEMA.md"
   copy_template_if_missing "$templates_dir/index.md" "$raw_dir/index.md"
   copy_template_if_missing "$templates_dir/log.md" "$raw_dir/log.md"

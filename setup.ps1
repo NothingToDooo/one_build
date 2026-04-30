@@ -675,7 +675,11 @@ function Deploy-LlmWikiWorkflow {
 
     $repoRoot = Get-OneBuildRepoRoot
     $templatesDir = Join-Path $repoRoot "templates"
-    foreach ($name in @("AGENTS.md", "SCHEMA.md", "index.md", "log.md")) {
+    $agentsTarget = Join-Path $rawDir "AGENTS.md"
+    Copy-Item -LiteralPath (Join-Path $templatesDir "AGENTS.md") -Destination $agentsTarget -Force
+    Write-Step "已同步 Wiki 工作流规则：$agentsTarget"
+
+    foreach ($name in @("SCHEMA.md", "index.md", "log.md")) {
         Save-TemplateIfMissing -SourcePath (Join-Path $templatesDir $name) -Path (Join-Path $rawDir $name)
     }
 
