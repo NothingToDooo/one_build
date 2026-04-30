@@ -1,57 +1,89 @@
 ---
 name: markitdown
-description: 使用 Microsoft MarkItDown 将 PDF、Word、PowerPoint、Excel、CSV、HTML、JSON、XML、ZIP、图片等资料转换为 Markdown，适用于导入本地文件、整理附件、把非 Markdown 文档沉淀进 LLM Wiki 或 Obsidian 知识库时。
+description: 使用 Microsoft MarkItDown 将 PDF、Word、PowerPoint、Excel、CSV、HTML、JSON、XML、ZIP、图片、音频等文件转换为 Markdown。适用于用户要求读取、提取、转换、预览或分析非 Markdown 文件内容时。
 ---
 
 # MarkItDown
 
-MarkItDown 是本地文件到 Markdown 的转换工具。处理 LLM Wiki 导入任务时，遇到 PDF、Word、PPT、Excel、CSV、HTML、JSON、XML、ZIP、图片或其它附件，优先用它生成可审阅的 Markdown sidecar，再按 wiki 规则整理。
+MarkItDown 是 Microsoft 的本地文件转 Markdown 工具。它负责把不同格式的文件转成适合阅读、检索和后续分析的 Markdown；不负责总结、分类、建知识库或写业务结论。
 
-如果未安装，请使用：
+## 什么时候使用
+
+- 用户要求读取、转换、提取、查看或分析 PDF、Word、PowerPoint、Excel、CSV、HTML、JSON、XML、ZIP、图片、音频等文件内容。
+- 用户要求“转 Markdown”“提取正文”“把附件变成可读文本”。
+- 后续工作流需要先得到 Markdown 中间产物，再进行摘要、整理、对比、导入或问答。
+
+如果用户给的是普通网页 URL，优先使用网页正文提取工具；MarkItDown 更适合本地文件和明确的文件型输入。
+
+## 安装检查
+
+先检查命令是否可用：
+
+```bash
+markitdown --version
+```
+
+如果未安装，使用 `uv` 安装：
 
 ```bash
 uv tool install --upgrade "markitdown[all]"
 ```
 
+不要用 `pip`、`npm`、`pnpm` 或 `yarn` 安装。
+
 ## 基本用法
 
-把单个文件转换成 Markdown：
+转换单个文件并保存：
 
 ```bash
-markitdown "source.pdf" > "source.extracted.md"
+markitdown "input.pdf" -o "output.md"
 ```
 
-如果文件名、目录名或 vault 路径包含中文、空格或特殊字符，始终给路径加引号。
+也可以输出到 stdout：
 
-## LLM Wiki 导入流程
+```bash
+markitdown "input.pdf"
+```
 
-1. 先读取 `llmwiki/raw/AGENTS.md`、`SCHEMA.md`、`index.md`、`log.md`。
-2. 保留原始文件，把它放入合适的 `raw/` 子目录：
-   - PDF、报告：`raw/papers/`
-   - Word、富文本文档：`raw/documents/`
-   - PPT、演示材料：`raw/slides/`
-   - CSV、Excel、表格型数据：`raw/tables/`
-   - 图片、截图、扫描件：`raw/images/`
-   - 无法归类附件：`raw/assets/`
-3. 用 MarkItDown 生成 sidecar：
-   - PDF：`文件名.extracted.md`
-   - Word：`文件名.extracted.md`
-   - PPT：`文件名.extracted.md`
-   - 表格：先生成 `文件名.extracted.md`，再按 wiki 规则补充 `文件名.profile.md`
-   - 图片：能提取文字时生成 `文件名.ocr.md`，否则生成 `文件名.description.md` 并标记 `needs-ocr`
-4. 在 sidecar 顶部写入 `raw/SCHEMA.md` 要求的原始资料 frontmatter，保留 `source_path`、`original_file`、`extracted_from`、`sha256` 和 `status`。
-5. 从 sidecar 中提取候选实体、概念、对比、问答或总结，只把有长期价值的内容写入用户可读 wiki 页面。
-6. 更新 `raw/index.md` 和 `raw/log.md`。
+从 stdin 读取时，给扩展名提示：
+
+```bash
+markitdown -x pdf < "input.pdf" > "output.md"
+```
+
+路径包含中文、空格或特殊字符时，必须加引号。
+
+## 常用格式
+
+MarkItDown 适合转换：
+
+- PDF：合同、报告、论文、说明书。
+- Office：`.docx`、`.pptx`、`.xlsx`。
+- 表格和结构化文件：`.csv`、`.json`、`.xml`。
+- 网页和电子书：`.html`、`.htm`、`.epub`。
+- 压缩包：`.zip`。
+- 图片：可提取元信息；是否能识别文字取决于文件和本地能力。
+- 音频：可在依赖可用时尝试转写。
+
+输出是 Markdown 文本，目标是方便 LLM 和人阅读，不保证保留原文件的精确排版。
 
 ## 批量文件
 
-处理大量文件时，先盘点文件清单并按类型或文件夹分组。能使用子代理时，把 PDF、Word、表格、幻灯片、图片等分给不同子代理；主代理负责合并、去重、建页和更新索引。
+批量处理前先列出文件清单，按扩展名或目录分组。输出文件名应和原文件保持可追溯关系，例如：
 
-不要把大表、长 PDF 或整份 PPT 原文全部塞进用户可读页面。原文留在 `raw/` sidecar，wiki 页面只保存摘要、关键事实、来源和链接。
+```bash
+markitdown "report.pdf" -o "report.md"
+markitdown "slides.pptx" -o "slides.md"
+markitdown "table.xlsx" -o "table.md"
+```
+
+处理大量文件时，优先让每个子任务负责一类文件或一个目录；最后再由主任务汇总转换结果和失败清单。
 
 ## 失败处理
 
-- MarkItDown 输出为空或明显乱码：保留原文件，sidecar 标记 `status: failed`，在 `raw/log.md` 记录失败原因。
-- 扫描 PDF 或图片无法 OCR：标记 `status: needs-ocr`，不要编造内容。
-- 表格太大：只生成 profile、字段说明、样例行、关键指标和数据质量问题。
-- 转换结果有敏感信息：不要擅自删除原文，先提醒用户确认处理方式。
+- 输出为空、明显乱码或命令失败时，报告具体文件和错误，不要编造内容。
+- 扫描 PDF 或图片无法识别文字时，说明需要 OCR 或其它工具。
+- 表格很大时，不要把完整转换结果直接塞进最终回答；先抽样、列字段、说明行列规模和主要 sheet。
+- 转换结果可能包含隐私、合同、邮箱、手机号或内部数据时，后续展示前先考虑脱敏。
+- 不要默认启用第三方插件；只有用户明确需要时才使用 `--use-plugins`。
+- `--use-docintel` 需要 Azure Document Intelligence endpoint；除非用户已经提供并明确要求，否则不要使用。

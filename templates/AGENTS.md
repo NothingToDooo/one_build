@@ -83,7 +83,7 @@
 
 ## 文件转 Markdown
 
-如果本机可用 `markitdown`，处理非 Markdown 文件时优先使用：
+处理非 Markdown 文件时，优先调用全局 `markitdown` skill 生成 Markdown 提取结果，再按本文件和 `raw/SCHEMA.md` 的规则保存、登记和沉淀。
 
 ```bash
 markitdown "原始文件路径" > "提取结果路径.md"
