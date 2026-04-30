@@ -1,11 +1,11 @@
 ---
 name: markitdown
-description: 使用 Microsoft MarkItDown 将 PDF、Word、PowerPoint、Excel、CSV、HTML、JSON、XML、ZIP、图片、音频等文件转换为 Markdown。适用于用户要求读取、提取、转换、预览或分析非 Markdown 文件内容时。
+description: 使用 MarkItDown 将 PDF、Word、PowerPoint、Excel、CSV、HTML、JSON、XML、ZIP、图片、音频等文件转换为 Markdown。适用于用户要求读取、提取、转换、预览或分析非 Markdown 文件内容时。
 ---
 
 # MarkItDown
 
-MarkItDown 是 Microsoft 的本地文件转 Markdown 工具。它负责把不同格式的文件转成适合阅读、检索和后续分析的 Markdown；不负责总结、分类、建知识库或写业务结论。
+MarkItDown 是一款本地文件转 Markdown 工具。它负责把不同格式的文件转成适合阅读、检索和后续分析的 Markdown。
 
 ## 什么时候使用
 
