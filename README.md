@@ -72,7 +72,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 - 要求用户通过 GUI 选择 Obsidian 仓库目录。
 - 如果用户选择的是磁盘或卷的根目录，脚本会自动在其中创建并使用 `codexWiki` 文件夹。
 - 在用户选择的仓库中创建或复用 `llmwiki/`。
-- 部署 Codex LLM Wiki 工作流模板。
+- 部署 Codex LLM Wiki 工作流模板和 `raw/tools/llmwiki_tool.py` 辅助脚本。
 - 在用户选择的 vault 内安装并启用 Excalidraw 社区插件，供 `excalidraw-diagram` skill 使用。
 - 同步常用 Obsidian/Codex skills 到用户全局目录 `~/.agents/skills`。
 - Windows 使用 `-UpgradeTools`、macOS 使用 `--upgrade-tools` 时，才尝试升级已安装工具。
@@ -92,6 +92,10 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
     │   ├── SCHEMA.md
     │   ├── index.md
     │   ├── log.md
+    │   ├── tools
+    │   │   └── llmwiki_tool.py
+    │   ├── plans
+    │   │   └── applied
     │   ├── _archive
     │   ├── articles
     │   ├── papers
@@ -103,7 +107,7 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
     │   └── assets
 ```
 
-`实体/`、`概念/`、`对比/`、`问答/`、`总结/` 是用户直接阅读的 wiki 页面；`raw/` 放原始资料、提取 sidecar、规则文件、索引和日志。`raw/AGENTS.md` 和 `raw/SCHEMA.md` 包含导入、重新导入、批量处理、审计、归档和日志轮转规则。脚本不会覆盖已有模板文件，也不会删除用户已有 Markdown。
+`实体/`、`概念/`、`对比/`、`问答/`、`总结/` 是用户直接阅读的 wiki 页面；`raw/` 放原始资料、提取 sidecar、规则文件、索引、日志和工具脚本。`raw/AGENTS.md` 和 `raw/SCHEMA.md` 包含导入、重新导入、批量处理、审计、归档和日志轮转规则。脚本不会覆盖已有模板文件，也不会删除用户已有 Markdown；`raw/tools/llmwiki_tool.py` 属于安装器管理文件，会随脚本刷新到最新版本。
 
 ## 给 Codex 的使用方式
 
@@ -118,6 +122,14 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
 ```
 
 Codex 通过全局 `llm-wiki` skill 定位到所选 vault 后，会进入 `llmwiki/raw/AGENTS.md`、`SCHEMA.md`、`index.md` 和 `log.md` 执行工作流。
+
+如果任务涉及 hash 校验、断链检查、index 检查、表格 profile、日志轮转，或需要批量改 frontmatter、更新 index、归档重复页，Codex 会优先使用：
+
+```bash
+uv run llmwiki/raw/tools/llmwiki_tool.py --help
+```
+
+涉及批量修改时，Codex 会先把判断结果写成 `llmwiki/raw/plans/*.json`，再 dry-run，确认无误后执行并把 plan 移到 `llmwiki/raw/plans/applied/`。
 
 ## 同步的全局 skills
 

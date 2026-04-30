@@ -30,6 +30,9 @@
 - `raw/SCHEMA.md`：结构、字段、标签和维护规则。
 - `raw/index.md`：所有 wiki 页面的目录。
 - `raw/log.md`：追加式操作记录。
+- `raw/tools/llmwiki_tool.py`：确定性辅助工具，处理 hash、lint、断链、索引、表格 profile 和 plan 应用。
+- `raw/plans/`：agent 写入待执行修改计划的位置。
+- `raw/plans/applied/`：已经执行过的 plan 归档位置。
 - `raw/_archive/`：过时但需要保留的页面。
 - `raw/articles/`：网页文章、剪藏、博客、新闻稿。
 - `raw/papers/`：论文、报告、PDF 长文档。
@@ -90,6 +93,72 @@ markitdown "原始文件路径" > "提取结果路径.md"
 ```
 
 转换结果只作为 raw sidecar 和后续摘要的依据。不要因为 MarkItDown 成功输出了 Markdown，就把整份长文档全文塞进 `实体/`、`概念/`、`对比/`、`问答/` 或 `总结/` 页面。
+
+## 工具脚本
+
+如果 `raw/tools/llmwiki_tool.py` 存在，优先把可确定的检查和批量修改交给它完成。agent 负责判断“应该怎么改”，工具只负责验证路径、执行机械改动和输出结构化结果。
+
+常用只读命令：
+
+```bash
+uv run llmwiki/raw/tools/llmwiki_tool.py inventory "资料目录" --json
+uv run llmwiki/raw/tools/llmwiki_tool.py hash "llmwiki/raw/articles/example.md" --json
+uv run llmwiki/raw/tools/llmwiki_tool.py verify-hash "llmwiki" --json
+uv run llmwiki/raw/tools/llmwiki_tool.py lint "llmwiki" --json
+uv run llmwiki/raw/tools/llmwiki_tool.py links "llmwiki" --json
+uv run llmwiki/raw/tools/llmwiki_tool.py index-check "llmwiki" --json
+uv run llmwiki/raw/tools/llmwiki_tool.py log-status "llmwiki" --json
+uv run llmwiki/raw/tools/llmwiki_tool.py table-profile "llmwiki/raw/tables/example.csv" --json
+```
+
+Excel 精确 profile 需要 pandas/openpyxl 时，用：
+
+```bash
+uv run --with pandas --with openpyxl llmwiki/raw/tools/llmwiki_tool.py table-profile "llmwiki/raw/tables/example.xlsx" --json
+```
+
+需要改 frontmatter、更新 index、修断链、归档重复页或合并页面时，先由 agent 写 JSON plan 到 `llmwiki/raw/plans/`，再 dry-run 校验，最后执行：
+
+```bash
+uv run llmwiki/raw/tools/llmwiki_tool.py plan-validate "llmwiki/raw/plans/example.json" --json
+uv run llmwiki/raw/tools/llmwiki_tool.py apply-plan "llmwiki/raw/plans/example.json" --json
+uv run llmwiki/raw/tools/llmwiki_tool.py apply-plan "llmwiki/raw/plans/example.json" --yes --json
+```
+
+Plan 只允许修改 `llmwiki/` 内路径，不能修改 `raw/tools/llmwiki_tool.py`。默认 `apply-plan` 是 dry-run；只有确认输出符合预期后才加 `--yes`。归档优先用 `archive`，不要直接删除，除非用户明确要求。
+
+Plan 示例：
+
+```json
+{
+  "version": 1,
+  "reason": "修复断链并登记 index",
+  "operations": [
+    {
+      "op": "replace_text",
+      "path": "概念/注意力机制.md",
+      "find": "[[Attention]]",
+      "replace": "[[注意力机制]]"
+    },
+    {
+      "op": "update_frontmatter",
+      "path": "实体/OpenAI.md",
+      "set": {
+        "updated": "2026-04-30",
+        "tags": ["entity"]
+      }
+    },
+    {
+      "op": "append_index_entry",
+      "entry": "- [[实体/OpenAI]]：AI 公司和模型提供方。\n"
+    },
+    {
+      "op": "archive",
+      "path": "概念/旧页面.md"
+    }
+  ]
+}
+```
 
 ## 批量资料处理
 

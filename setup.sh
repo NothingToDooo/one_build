@@ -467,6 +467,8 @@ deploy_llmwiki_workflow() {
     "$raw_dir/images" \
     "$raw_dir/assets" \
     "$raw_dir/_archive" \
+    "$raw_dir/plans/applied" \
+    "$raw_dir/tools" \
     "$wiki_dir/实体" \
     "$wiki_dir/概念" \
     "$wiki_dir/对比" \
@@ -480,6 +482,8 @@ deploy_llmwiki_workflow() {
   copy_template_if_missing "$templates_dir/SCHEMA.md" "$raw_dir/SCHEMA.md"
   copy_template_if_missing "$templates_dir/index.md" "$raw_dir/index.md"
   copy_template_if_missing "$templates_dir/log.md" "$raw_dir/log.md"
+  cp "$templates_dir/tools/llmwiki_tool.py" "$raw_dir/tools/llmwiki_tool.py"
+  log "已同步 Wiki 工具脚本：$raw_dir/tools/llmwiki_tool.py"
 }
 
 global_skills_root() {
@@ -588,7 +592,8 @@ description: 定位并进入用户的 LLM Wiki 或 Obsidian 知识库。适用�
    - \`llmwiki/raw/SCHEMA.md\`
    - \`llmwiki/raw/index.md\`
    - \`llmwiki/raw/log.md\`
-4. 后续全部按照 \`llmwiki/raw/AGENTS.md\` 和 \`llmwiki/raw/SCHEMA.md\` 执行。
+4. 如果存在 \`llmwiki/raw/tools/llmwiki_tool.py\`，优先用它执行 hash、lint、断链检查、index 检查、表格 profile、plan 校验和 plan 应用。
+5. 后续全部按照 \`llmwiki/raw/AGENTS.md\` 和 \`llmwiki/raw/SCHEMA.md\` 执行。
 
 如果用户明确指定了另一个 vault，则以用户指定路径为准，并重复读取该 vault 下的 \`llmwiki/raw/\` 规则文件。
 EOF

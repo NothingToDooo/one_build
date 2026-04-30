@@ -657,6 +657,9 @@ function Deploy-LlmWikiWorkflow {
         (Join-Path $rawDir "images"),
         (Join-Path $rawDir "assets"),
         (Join-Path $rawDir "_archive"),
+        (Join-Path $rawDir "plans"),
+        (Join-Path $rawDir "plans\applied"),
+        (Join-Path $rawDir "tools"),
         (Join-Path $wikiDir "实体"),
         (Join-Path $wikiDir "概念"),
         (Join-Path $wikiDir "对比"),
@@ -670,6 +673,11 @@ function Deploy-LlmWikiWorkflow {
     foreach ($name in @("AGENTS.md", "SCHEMA.md", "index.md", "log.md")) {
         Save-TemplateIfMissing -SourcePath (Join-Path $templatesDir $name) -Path (Join-Path $rawDir $name)
     }
+
+    $toolsDir = Join-Path $templatesDir "tools"
+    $toolTarget = Join-Path $rawDir "tools\llmwiki_tool.py"
+    Copy-Item -LiteralPath (Join-Path $toolsDir "llmwiki_tool.py") -Destination $toolTarget -Force
+    Write-Step "已同步 Wiki 工具脚本：$toolTarget"
 }
 
 function Get-GlobalSkillsRoot {
@@ -773,7 +781,8 @@ description: 定位并进入用户的 LLM Wiki 或 Obsidian 知识库。适用�
    - `llmwiki/raw/SCHEMA.md`
    - `llmwiki/raw/index.md`
    - `llmwiki/raw/log.md`
-4. 后续全部按照 `llmwiki/raw/AGENTS.md` 和 `llmwiki/raw/SCHEMA.md` 执行。
+4. 如果存在 `llmwiki/raw/tools/llmwiki_tool.py`，优先用它执行 hash、lint、断链检查、index 检查、表格 profile、plan 校验和 plan 应用。
+5. 后续全部按照 `llmwiki/raw/AGENTS.md` 和 `llmwiki/raw/SCHEMA.md` 执行。
 
 如果用户明确指定了另一个 vault，则以用户指定路径为准，并重复读取该 vault 下的 `llmwiki/raw/` 规则文件。
 '@
