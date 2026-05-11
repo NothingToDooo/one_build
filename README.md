@@ -91,7 +91,10 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
     │   ├── AGENTS.md
     │   ├── SCHEMA.md
     │   ├── index.md
-    │   ├── log.md
+    │   ├── log
+    │   │   └── YYYYMMDD.md
+    │   ├── audit
+    │   │   └── resolved
     │   ├── tools
     │   │   └── llmwiki_tool.py
     │   ├── plans
@@ -107,23 +110,23 @@ u="https://raw.githubusercontent.com/NothingToDooo/one_build/main/setup.sh"; f="
     │   └── assets
 ```
 
-`实体/`、`概念/`、`对比/`、`问答/`、`总结/` 是用户直接阅读的 wiki 页面；`raw/` 放原始资料、提取 sidecar、规则文件、索引、日志和工具脚本。`raw/AGENTS.md` 和 `raw/SCHEMA.md` 包含导入、重新导入、批量处理、审计、归档和日志轮转规则。脚本会刷新安装器管理的 `raw/AGENTS.md` 和 `raw/tools/llmwiki_tool.py`；`raw/SCHEMA.md`、`raw/index.md`、`raw/log.md` 已存在时不会覆盖，也不会删除用户已有 Markdown。
+`实体/`、`概念/`、`对比/`、`问答/`、`总结/` 是用户直接阅读的 wiki 页面；`raw/` 放原始资料、提取 sidecar、规则文件、索引、按天日志、audit 反馈和工具脚本。`raw/AGENTS.md` 和 `raw/SCHEMA.md` 包含导入、重新导入、compile、批量处理、audit、归档和日志规则。脚本会刷新安装器管理的 `raw/AGENTS.md` 和 `raw/tools/llmwiki_tool.py`；`raw/SCHEMA.md`、`raw/index.md` 和已有日志不会覆盖，也不会删除用户已有 Markdown。
 
 ## 给 Codex 的使用方式
 
 在 Codex 中打开用户选择的 Obsidian 仓库目录，然后直接提出任务，例如：
 
 ```text
-请按 llmwiki/raw/AGENTS.md 的规则，把 D:\资料 里的文档导入这个知识库，抽取实体和概念，更新 raw/index.md 和 raw/log.md。
+请按 llmwiki/raw/AGENTS.md 的规则，把 D:\资料 里的文档导入这个知识库，抽取实体和概念，更新 raw/index.md 和当天 raw/log/YYYYMMDD.md。
 ```
 
 ```text
 请基于 llmwiki 回答“这些资料里反复出现的核心主张是什么”，答案要链接到相关 wiki 页面和原始资料。
 ```
 
-Codex 通过全局 `llm-wiki` skill 定位到所选 vault 后，会进入 `llmwiki/raw/AGENTS.md`、`SCHEMA.md`、`index.md` 和 `log.md` 执行工作流。
+Codex 通过全局 `llm-wiki` skill 定位到所选 vault 后，会进入 `llmwiki/raw/AGENTS.md`、`SCHEMA.md`、`index.md`、`raw/log/` 最近日志和 `raw/audit/` open 反馈执行工作流。
 
-如果任务涉及 hash 校验、断链检查、index 检查、表格 profile、日志轮转，或需要批量改 frontmatter、更新 index、归档重复页，Codex 会优先使用：
+如果任务涉及 hash 校验、断链检查、index 检查、表格 profile、日志迁移、audit review，或需要批量改 frontmatter、更新 index、归档重复页，Codex 会优先使用：
 
 ```bash
 uv run llmwiki/raw/tools/llmwiki_tool.py --help

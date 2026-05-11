@@ -14,8 +14,9 @@
 
 1. 阅读 `raw/SCHEMA.md`，确认主题、字段、标签、建页阈值和更新策略。
 2. 阅读 `raw/index.md`，了解现有页面和摘要。
-3. 阅读 `raw/log.md` 最近 20 到 30 条记录，了解最近导入、查询、冲突和维护动作。
+3. 阅读 `raw/log/` 最近 3 到 7 天日志，了解最近导入、查询、冲突和维护动作。
 4. 针对当前任务搜索已有页面和原始资料，避免重复创建同义页面。
+5. 如果 `raw/audit/` 存在未处理反馈，先判断是否需要优先处理高严重性纠错。
 
 如果 wiki 页面超过 100 个，不要只依赖 `raw/index.md`；还要搜索所有 Markdown 文件中的关键词、别名和相关词。
 
@@ -29,11 +30,13 @@
 - `raw/AGENTS.md`：agent 工作流规则。
 - `raw/SCHEMA.md`：结构、字段、标签和维护规则。
 - `raw/index.md`：所有 wiki 页面的目录。
-- `raw/log.md`：追加式操作记录。
-- `raw/tools/llmwiki_tool.py`：确定性辅助工具，处理 hash、lint、断链、索引、表格 profile 和 plan 应用。
+- `raw/log/`：按天追加式操作记录，文件名为 `YYYYMMDD.md`。
+- `raw/audit/`：人工纠错和改进反馈 inbox，每条反馈一个 Markdown 文件。
+- `raw/audit/resolved/`：已处理反馈，保留 resolution，不删除。
+- `raw/tools/llmwiki_tool.py`：确定性辅助工具，处理 hash、lint、断链、索引、日志、audit、表格 profile 和 plan 应用。
 - `raw/plans/`：agent 写入待执行修改计划的位置。
 - `raw/plans/applied/`：已经执行过的 plan 归档位置。
-- `raw/_archive/`：过时但需要保留的页面。
+- `raw/_archive/`：过时但需要保留的页面和旧元数据。
 - `raw/articles/`：网页文章、剪藏、博客、新闻稿。
 - `raw/papers/`：论文、报告、PDF 长文档。
 - `raw/transcripts/`：访谈、会议记录、逐字稿、用户粘贴的长文本。
@@ -57,7 +60,7 @@
 8. 遇到新旧资料冲突时，不要静默覆盖，按 `raw/SCHEMA.md` 的冲突处理策略记录双方观点。
 9. 新建或更新 wiki 页面时，尽量加入至少两个有用的 `[[wikilinks]]`，并检查是否需要让相关页面反向链接回来。
 10. 更新 `raw/index.md` 的对应分区、摘要、总数和日期。
-11. 在 `raw/log.md` 追加记录，列出创建、修改、跳过、失败和需要用户判断的文件。
+11. 在当天 `raw/log/YYYYMMDD.md` 追加记录，列出创建、修改、跳过、失败和需要用户判断的文件。
 12. 向用户报告本次改动的文件清单和未解决问题。
 
 ## 重新导入
@@ -70,7 +73,19 @@
 4. 如果 sha256 相同，跳过 wiki 更新，只在必要时记录“内容未变”。
 5. 如果 sha256 不同，保留旧文件的可追溯信息，更新或新建提取 sidecar，并标记来源发生漂移。
 6. 只把真实变化合并进 wiki 页面，不要因为重新导入而重写无关段落。
-7. 在 `raw/log.md` 记录旧 sha256、新 sha256、受影响页面和是否存在冲突。
+7. 在当天 `raw/log/YYYYMMDD.md` 记录旧 sha256、新 sha256、受影响页面和是否存在冲突。
+
+## 编译整理
+
+当用户要求整理、重构、清理、合并、拆分或“重新编译”知识库时，把它视为 compile 操作：
+
+1. 先完成“每次开始前”的定向步骤。
+2. 找出当前最影响可读性和可维护性的结构问题，例如重复页面、过长页面、断链、孤立页、index 漂移或主题边界混乱。
+3. 页面超过 200 行，或一个页面包含 3 个以上可独立复用的子问题时，优先拆成主题页加子页，而不是继续堆长文。
+4. 近重复页面先比较来源、页面职责和入链，再决定合并、保留分工或归档。
+5. 大范围移动、合并、归档和批量 frontmatter 修改必须先写 plan，dry-run 通过后再执行。
+6. 更新 `raw/index.md`，确保每个用户阅读页只出现一次。
+7. 在 `raw/log/YYYYMMDD.md` 记录 compile 范围、创建、修改、合并、归档和未解决问题。
 
 ## 不同资料类型
 
@@ -108,6 +123,9 @@ uv run llmwiki/raw/tools/llmwiki_tool.py lint "llmwiki" --json
 uv run llmwiki/raw/tools/llmwiki_tool.py links "llmwiki" --json
 uv run llmwiki/raw/tools/llmwiki_tool.py index-check "llmwiki" --json
 uv run llmwiki/raw/tools/llmwiki_tool.py log-status "llmwiki" --json
+uv run llmwiki/raw/tools/llmwiki_tool.py log-migrate "llmwiki" --json
+uv run llmwiki/raw/tools/llmwiki_tool.py audit-review "llmwiki" --mode open --json
+uv run llmwiki/raw/tools/llmwiki_tool.py audit-anchor "llmwiki" "raw/audit/example.md" --json
 uv run llmwiki/raw/tools/llmwiki_tool.py table-profile "llmwiki/raw/tables/example.csv" --json
 ```
 
@@ -171,7 +189,7 @@ Plan 示例：
 5. 合并时保留每批资料的来源路径、处理状态和未解决问题。
 6. 对所有候选实体和概念做一次统一搜索，不要每处理一个文件就重复搜索一次。
 7. 统一创建或更新页面，最后只更新一次 `raw/index.md`。
-8. 在 `raw/log.md` 写一条批量记录，列出批次范围、文件数量、分组、创建/更新页面和失败项。
+8. 在当天 `raw/log/YYYYMMDD.md` 写一条批量记录，列出批次范围、文件数量、分组、创建/更新页面和失败项。
 
 如果当前运行环境没有子代理能力，就先完成分组和处理计划，再按分组顺序逐批处理；不要在没有盘点的情况下直接把大量文件混在一起总结。
 
@@ -186,7 +204,62 @@ Plan 示例：
 5. 回答中链接到相关 wiki 页面和原始资料路径。
 6. 如果答案复杂、以后可能复用，保存到 `问答/`；如果本质是横向比较，保存到 `对比/`；如果是跨来源综述或阶段性总结，保存到 `总结/`。
 7. 不保存普通查找类问题。
-8. 在 `raw/log.md` 追加查询记录，说明是否沉淀成页面。
+8. 在当天 `raw/log/YYYYMMDD.md` 追加查询记录，说明是否沉淀成页面。
+
+## 纠错与 Audit
+
+`raw/audit/` 只记录明确纠错或明确改进反馈，不记录普通讨论。
+
+直接写入 audit 的情况：
+
+1. 用户明确说“这里不对”“这个结论错了”“应该改成……”“记一下这个错误”“把这条反馈记录下来”。
+2. 用户点名目标页面、原文片段或结论，并给出替代事实、替代来源或具体修改方向。
+3. 用户要求以后按某个事实或口径修正既有 wiki。
+4. agent 准备修改已有结论，但证据不足以立刻改正文，需要留下待核对项。
+
+不要自动写入 audit 的情况：
+
+1. 用户只是在讨论、追问、假设、比较方案或要求解释。
+2. 用户说法没有指向任何 wiki 页面、原始资料或可定位结论。
+3. 纠错意图不清楚，且写入会造成长期维护负担。
+
+意图模糊时先问一句：“这是要记录成 wiki 纠错，还是只在这里讨论？”用户确认前不写持久文件。
+
+Audit 文件放在 `raw/audit/YYYYMMDD-HHMMSS-<slug>.md`，格式：
+
+```yaml
+---
+id: YYYYMMDD-HHMMSS-abcd
+target: 概念/示例.md
+target_lines: [12, 14]
+anchor_before: "前文"
+anchor_text: "被纠错的原文"
+anchor_after: "后文"
+severity: info | suggest | warn | error
+author: user
+source: chat | manual | agent
+created: YYYY-MM-DDTHH:MM:SS+08:00
+status: open
+---
+
+# Comment
+
+纠错或建议内容。
+
+# Resolution
+
+<!-- 处理后填写 -->
+```
+
+处理 audit 时：
+
+1. 先运行 `audit-review` 按 severity 查看 open 项。
+2. 对每条反馈运行或手动执行锚点定位：先看 `target_lines`，再找唯一 `anchor_text`，最后用 `anchor_before + anchor_text + anchor_after`。
+3. 决策只能是 accept、partial、reject 或 defer。
+4. accept/partial 时用最小编辑修正目标页面，并更新页面 `updated`。
+5. reject 也要说明原因；defer 要写清楚缺少什么证据或等待什么判断。
+6. 处理完成后把 `status` 改为 `resolved`，补全 `# Resolution`，移动到 `raw/audit/resolved/`。
+7. 在当天 `raw/log/YYYYMMDD.md` 记录 audit id、目标页面、处理决策和修改路径。
 
 ## 审计与健康检查
 
@@ -205,9 +278,10 @@ Plan 示例：
 11. 超过 200 行、需要拆分的页面。
 12. 超过 90 天未更新但被新来源频繁提到的页面。
 13. 同一实体或概念的重复页面。
-14. `raw/log.md` 是否超过 500 条记录，需要轮转。
+14. `raw/audit/` 中 open 反馈的数量、严重性、目标是否存在和锚点是否仍能定位。
+15. `raw/log/` 文件命名、H1 日期和最近日志是否完整。
 
-报告时按严重程度分组：断链和缺失文件优先，其次是来源漂移、冲突、孤立页面、陈旧内容和样式问题。每条问题都给出具体路径和建议动作，并在 `raw/log.md` 追加审计记录。
+报告时按严重程度分组：断链和缺失文件优先，其次是来源漂移、冲突、孤立页面、陈旧内容和样式问题。每条问题都给出具体路径和建议动作，并在当天 `raw/log/YYYYMMDD.md` 追加审计记录。
 
 ## 归档
 
@@ -217,18 +291,29 @@ Plan 示例：
 2. 从 `raw/index.md` 移除原页面。
 3. 找到指向该页面的 `[[wikilinks]]`，改成普通文本并标注已归档，或改链到替代页面。
 4. 在归档页面顶部说明归档日期、原因和替代页面。
-5. 在 `raw/log.md` 记录归档动作。
+5. 在当天 `raw/log/YYYYMMDD.md` 记录归档动作。
 
 不要直接删除页面，除非用户明确要求。
 
-## 日志轮转
+## 日志目录
 
-`raw/log.md` 是追加式记录。超过 500 条二级标题记录时：
+`raw/log/` 是追加式日志目录，每天一个文件：
 
-1. 把当前 `raw/log.md` 重命名为 `raw/log-YYYY.md`。
-2. 新建 `raw/log.md`，保留说明和新的轮转记录。
-3. 不要丢弃旧日志。
-4. 在新的 `raw/log.md` 写明旧日志文件路径。
+```markdown
+# YYYY-MM-DD
+
+## [HH:MM] action | subject
+```
+
+常用 action：`compile`、`ingest`、`update`、`query`、`lint`、`audit`、`create`、`archive`、`delete`、`skip`、`error`。
+
+规则：
+
+1. 文件名必须是 `YYYYMMDD.md`。
+2. H1 必须是同一天的 ISO 日期 `# YYYY-MM-DD`。
+3. 每条记录只写本次动作摘要、路径、数量、跳过和待判断项，不粘贴长正文。
+4. 读取最近状态时优先看最近 3 到 7 天日志；需要追溯再按日期打开旧日志。
+5. 旧版 `raw/log.md` 只作为迁移输入，使用 `log-migrate` 迁到 `raw/log/` 后归档到 `raw/_archive/`。
 
 ## Obsidian CLI
 

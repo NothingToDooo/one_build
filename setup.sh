@@ -477,6 +477,8 @@ deploy_llmwiki_workflow() {
     "$raw_dir/_archive" \
     "$raw_dir/plans/applied" \
     "$raw_dir/tools" \
+    "$raw_dir/log" \
+    "$raw_dir/audit/resolved" \
     "$wiki_dir/实体" \
     "$wiki_dir/概念" \
     "$wiki_dir/对比" \
@@ -490,7 +492,20 @@ deploy_llmwiki_workflow() {
   log "已同步 Wiki 工作流规则：$raw_dir/AGENTS.md"
   copy_template_if_missing "$templates_dir/SCHEMA.md" "$raw_dir/SCHEMA.md"
   copy_template_if_missing "$templates_dir/index.md" "$raw_dir/index.md"
-  copy_template_if_missing "$templates_dir/log.md" "$raw_dir/log.md"
+  if [[ ! -f "$raw_dir/log.md" ]] && ! find "$raw_dir/log" -maxdepth 1 -name "*.md" -print -quit | grep -q .; then
+    local today_compact today_iso now_hm log_path
+    today_compact="$(date +%Y%m%d)"
+    today_iso="$(date +%Y-%m-%d)"
+    now_hm="$(date +%H:%M)"
+    log_path="$raw_dir/log/$today_compact.md"
+    cat > "$log_path" <<EOF
+# $today_iso
+
+## [$now_hm] create | 初始化 Wiki
+
+- 创建 \`raw/AGENTS.md\`、\`raw/SCHEMA.md\`、\`raw/index.md\`、\`raw/log/\` 和 \`raw/audit/\`。
+EOF
+  fi
   cp "$templates_dir/tools/llmwiki_tool.py" "$raw_dir/tools/llmwiki_tool.py"
   log "已同步 Wiki 工具脚本：$raw_dir/tools/llmwiki_tool.py"
 }
@@ -600,7 +615,8 @@ description: 定位并进入用户的 LLM Wiki 或 Obsidian 知识库。适用�
    - \`llmwiki/raw/AGENTS.md\`
    - \`llmwiki/raw/SCHEMA.md\`
    - \`llmwiki/raw/index.md\`
-   - \`llmwiki/raw/log.md\`
+   - \`llmwiki/raw/log/\` 最近 3 到 7 天日志
+   - \`llmwiki/raw/audit/\` 中未处理的高严重性反馈
 4. 后续全部按照 \`llmwiki/raw/AGENTS.md\` 和 \`llmwiki/raw/SCHEMA.md\` 执行。
 
 如果用户明确指定了另一个 vault，则以用户指定路径为准，并重复读取该 vault 下的 \`llmwiki/raw/\` 规则文件。

@@ -49,6 +49,22 @@ TYPE_BY_DIR = {
 }
 ALLOWED_PAGE_TYPES = set(TYPE_BY_DIR.values())
 ALLOWED_RAW_STATUS = {"raw", "extracted", "profiled", "needs-ocr", "failed"}
+AUDIT_REQUIRED = {
+    "id",
+    "target",
+    "target_lines",
+    "anchor_before",
+    "anchor_text",
+    "anchor_after",
+    "severity",
+    "author",
+    "source",
+    "created",
+    "status",
+}
+ALLOWED_AUDIT_SEVERITY = {"info", "suggest", "warn", "error"}
+ALLOWED_AUDIT_SOURCE = {"manual", "chat", "agent"}
+ALLOWED_AUDIT_STATUS = {"open", "resolved"}
 TEXT_EXTENSIONS = {".md", ".txt", ".csv", ".json", ".xml", ".html", ".htm"}
 DOCUMENT_EXTENSIONS = {".pdf", ".doc", ".docx", ".rtf"}
 SLIDE_EXTENSIONS = {".ppt", ".pptx", ".key"}
@@ -431,6 +447,231 @@ def schema_tags(wiki: Path) -> set[str]:
     return tags
 
 
+def is_meta_markdown(path: Path, wiki: Path) -> bool:
+    """判断 raw 下不需要 raw frontmatter 的元数据 Markdown。"""
+    raw = wiki / "raw"
+    rel = relpath(path, raw)
+    if rel in {"AGENTS.md", "SCHEMA.md", "index.md"}:
+        return True
+    return rel.startswith(("tools/", "log/", "audit/", "plans/", "_archive/"))
+
+
+def audit_files(wiki: Path, mode: str) -> list[Path]:
+    """按状态列出 audit 文件。"""
+    audit = wiki / "raw" / "audit"
+    files: list[Path] = []
+    if mode in {"open", "all"} and audit.exists():
+        files.extend(sorted(p for p in audit.glob("*.md") if p.name != ".gitkeep"))
+    resolved = audit / "resolved"
+    if mode in {"resolved", "all"} and resolved.exists():
+        files.extend(sorted(p for p in resolved.glob("*.md") if p.name != ".gitkeep"))
+    return files
+
+
+def audit_expected_status(path: Path) -> str:
+    """根据 audit 文件所在目录推断状态。"""
+    return "resolved" if path.parent.name == "resolved" else "open"
+
+
+def resolve_audit_target(wiki: Path, target: str) -> Path | None:
+    """解析 audit target 到 wiki 内文件。"""
+    candidates = [wiki / target]
+    if not target.startswith("raw/"):
+        candidates.extend(wiki / dirname / target for dirname in USER_DIRS)
+    for candidate in candidates:
+        if candidate.exists() and candidate.resolve().is_relative_to(wiki.resolve()):
+            return candidate
+    return None
+
+
+def audit_comment_one_line(text: str) -> str:
+    """提取 audit comment 第一行。"""
+    in_comment = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.lower().startswith("# comment") or stripped.startswith("# 纠错"):
+            in_comment = True
+            continue
+        if not in_comment:
+            continue
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            break
+        return stripped[:120]
+    return "(no comment body)"
+
+
+def find_all(text: str, needle: str) -> list[int]:
+    """查找所有子串位置。"""
+    if not needle:
+        return []
+    starts = []
+    offset = 0
+    while True:
+        index = text.find(needle, offset)
+        if index < 0:
+            break
+        starts.append(index)
+        offset = index + 1
+    return starts
+
+
+def offsets_to_lines(text: str, start: int, end: int) -> tuple[int, int]:
+    """把字符偏移转为 1-based 行号。"""
+    line = 1
+    line_start = 1
+    line_end = 1
+    seen_start = False
+    seen_end = False
+    for index, char in enumerate(text):
+        if not seen_start and index >= start:
+            line_start = line
+            seen_start = True
+        if not seen_end and index >= end:
+            line_end = line
+            seen_end = True
+            break
+        if char == "\n":
+            line += 1
+    if not seen_start:
+        line_start = line
+    if not seen_end:
+        line_end = line
+    return line_start, max(line_start, line_end)
+
+
+def resolve_audit_anchor(target_text: str, frontmatter: dict[str, Any]) -> dict[str, Any] | None:
+    """用行号、唯一文本、前后文窗口解析 audit 锚点。"""
+    anchor_text = str(frontmatter.get("anchor_text", ""))
+    target_lines = frontmatter.get("target_lines", [])
+    if (
+        isinstance(target_lines, list)
+        and len(target_lines) == 2
+        and all(isinstance(item, int) for item in target_lines)
+    ):
+        line_start, line_end = target_lines
+        lines = target_text.split("\n")
+        if 1 <= line_start <= line_end <= len(lines):
+            range_text = "\n".join(lines[line_start - 1 : line_end])
+            range_index = range_text.find(anchor_text)
+            if range_index >= 0:
+                prefix = "\n".join(lines[: line_start - 1])
+                char_start = len(prefix) + (1 if prefix else 0) + range_index
+                char_end = char_start + len(anchor_text)
+                resolved_start, resolved_end = offsets_to_lines(
+                    target_text,
+                    char_start,
+                    char_end,
+                )
+                return {
+                    "resolved": True,
+                    "via": "line",
+                    "char_start": char_start,
+                    "char_end": char_end,
+                    "line_start": resolved_start,
+                    "line_end": resolved_end,
+                }
+    occurrences = find_all(target_text, anchor_text)
+    if len(occurrences) == 1:
+        char_start = occurrences[0]
+        char_end = char_start + len(anchor_text)
+        line_start, line_end = offsets_to_lines(target_text, char_start, char_end)
+        return {
+            "resolved": True,
+            "via": "unique-text",
+            "char_start": char_start,
+            "char_end": char_end,
+            "line_start": line_start,
+            "line_end": line_end,
+        }
+    combined = (
+        str(frontmatter.get("anchor_before", ""))
+        + anchor_text
+        + str(frontmatter.get("anchor_after", ""))
+    )
+    combined_index = target_text.find(combined)
+    if combined and combined_index >= 0 and target_text.find(combined, combined_index + 1) < 0:
+        char_start = combined_index + len(str(frontmatter.get("anchor_before", "")))
+        char_end = char_start + len(anchor_text)
+        line_start, line_end = offsets_to_lines(target_text, char_start, char_end)
+        return {
+            "resolved": True,
+            "via": "context-window",
+            "char_start": char_start,
+            "char_end": char_end,
+            "line_start": line_start,
+            "line_end": line_end,
+        }
+    return None
+
+
+def audit_lint_issues(wiki: Path) -> list[dict[str, Any]]:
+    """检查 raw/audit 文件形状和目标。"""
+    issues: list[dict[str, Any]] = []
+    for path in audit_files(wiki, "all"):
+        path_rel = relpath(path, wiki)
+        doc = parse_markdown(read_text(path))
+        if not doc.has_frontmatter:
+            issues.append(
+                {"severity": "error", "code": "audit-missing-frontmatter", "path": path_rel},
+            )
+            continue
+        missing = sorted(AUDIT_REQUIRED - set(doc.frontmatter))
+        issues.extend(
+            {
+                "severity": "error",
+                "code": "audit-missing-field",
+                "path": path_rel,
+                "field": key,
+            }
+            for key in missing
+        )
+        severity = doc.frontmatter.get("severity")
+        if severity and severity not in ALLOWED_AUDIT_SEVERITY:
+            issues.append(
+                {
+                    "severity": "error",
+                    "code": "audit-invalid-severity",
+                    "path": path_rel,
+                    "value": severity,
+                },
+            )
+        source = doc.frontmatter.get("source")
+        if source and source not in ALLOWED_AUDIT_SOURCE:
+            issues.append(
+                {
+                    "severity": "error",
+                    "code": "audit-invalid-source",
+                    "path": path_rel,
+                    "value": source,
+                },
+            )
+        status = doc.frontmatter.get("status")
+        expected = audit_expected_status(path)
+        if status and status != expected:
+            issues.append(
+                {
+                    "severity": "error",
+                    "code": "audit-status-directory-mismatch",
+                    "path": path_rel,
+                    "expected": expected,
+                    "actual": status,
+                },
+            )
+        target = doc.frontmatter.get("target")
+        if isinstance(target, str) and not resolve_audit_target(wiki, target):
+            issues.append(
+                {
+                    "severity": "error",
+                    "code": "audit-target-missing",
+                    "path": path_rel,
+                    "target": target,
+                },
+            )
+    return issues
+
+
 def command_lint(args: argparse.Namespace) -> int:
     """执行 Wiki 结构 lint 命令。
 
@@ -496,12 +737,7 @@ def command_lint(args: argparse.Namespace) -> int:
                         ],
                     )
     for path in iter_markdown(wiki / "raw"):
-        if "raw/tools" in relpath(path, wiki) or path.name in {
-            "AGENTS.md",
-            "SCHEMA.md",
-            "index.md",
-            "log.md",
-        }:
+        if is_meta_markdown(path, wiki):
             continue
         doc = parse_markdown(read_text(path))
         path_rel = relpath(path, wiki)
@@ -536,8 +772,9 @@ def command_lint(args: argparse.Namespace) -> int:
                         "path": path_rel,
                         "status": status,
                     },
-                ],
-            )
+                    ],
+                )
+    issues.extend(audit_lint_issues(wiki))
     result = {
         "issues": issues,
         "error_count": sum(1 for i in issues if i["severity"] == "error"),
@@ -634,6 +871,44 @@ def log_headings(log_text: str) -> list[str]:
     return re.findall(r"^##\s+\[", log_text, flags=re.MULTILINE)
 
 
+def daily_log_path(wiki: Path, day: str | None = None) -> Path:
+    """返回某日 raw/log 日志路径。"""
+    if day is None:
+        day = datetime.now().strftime("%Y%m%d")
+    return wiki / "raw" / "log" / f"{day}.md"
+
+
+def ensure_daily_log(wiki: Path, day: str | None = None) -> Path:
+    """确保某日 raw/log/YYYYMMDD.md 存在。"""
+    path = daily_log_path(wiki, day)
+    if path.exists():
+        return path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    compact = path.stem
+    iso = f"{compact[:4]}-{compact[4:6]}-{compact[6:8]}"
+    write_text(path, f"# {iso}\n\n")
+    return path
+
+
+def append_log_entry(wiki: Path, action: str, subject: str, body_lines: list[str]) -> Path:
+    """追加一条今日操作日志。"""
+    path = ensure_daily_log(wiki)
+    now_hm = datetime.now().strftime("%H:%M")
+    lines = ["", f"## [{now_hm}] {action} | {subject}", ""]
+    lines.extend(body_lines)
+    with path.open("a", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n".join(lines).rstrip() + "\n")
+    return path
+
+
+def iter_log_files(wiki: Path) -> list[Path]:
+    """列出 raw/log 下的日志文件。"""
+    log_dir = wiki / "raw" / "log"
+    if not log_dir.exists():
+        return []
+    return sorted(p for p in log_dir.glob("*.md") if p.is_file())
+
+
 def command_log_status(args: argparse.Namespace) -> int:
     """执行日志状态检查命令。
 
@@ -642,53 +917,113 @@ def command_log_status(args: argparse.Namespace) -> int:
 
     """
     wiki = find_llmwiki(Path(args.llmwiki))
-    log = wiki / "raw" / "log.md"
-    text = read_text(log) if log.exists() else ""
-    count = len(log_headings(text))
+    legacy_log = wiki / "raw" / "log.md"
+    files = iter_log_files(wiki)
+    entries_by_file = []
+    invalid_files = []
+    count = 0
+    for path in files:
+        text = read_text(path)
+        entries = len(log_headings(text))
+        count += entries
+        expected_h1 = f"# {path.stem[:4]}-{path.stem[4:6]}-{path.stem[6:8]}"
+        first_line = text.splitlines()[0].strip() if text.splitlines() else ""
+        if not re.fullmatch(r"\d{8}\.md", path.name) or first_line != expected_h1:
+            invalid_files.append(relpath(path, wiki))
+        entries_by_file.append({"path": relpath(path, wiki), "entries": entries})
     result = {
-        "path": relpath(log, wiki),
+        "path": "raw/log/",
         "entries": count,
-        "threshold": args.threshold,
-        "needs_rotate": count > args.threshold,
+        "files": entries_by_file,
+        "invalid_files": invalid_files,
+        "legacy_log": relpath(legacy_log, wiki) if legacy_log.exists() else None,
+        "needs_migrate": legacy_log.exists(),
     }
     print_result(result, as_json=args.json)
-    return 0
+    return 1 if invalid_files else 0
 
 
-def command_log_rotate(args: argparse.Namespace) -> int:
-    """执行日志轮转命令。
+def split_legacy_log(text: str) -> dict[str, list[str]]:
+    """把旧 raw/log.md 按日期分组。"""
+    grouped: dict[str, list[str]] = {}
+    current_date: str | None = None
+    current_lines: list[str] = []
+    for line in normalize_newlines(text).splitlines():
+        match = re.match(r"^##\s+\[(\d{4}-\d{2}-\d{2}|YYYY-MM-DD)\]\s*(.*)$", line)
+        if match:
+            if current_date and current_lines:
+                grouped.setdefault(current_date, []).extend(current_lines)
+            current_date = match.group(1)
+            suffix = match.group(2).strip()
+            if current_date == "YYYY-MM-DD":
+                current_date = datetime.now().date().isoformat()
+            current_lines = [f"## [00:00] {suffix}" if suffix else "## [00:00] update | legacy"]
+            continue
+        if current_date:
+            current_lines.append(line)
+    if current_date and current_lines:
+        grouped.setdefault(current_date, []).extend(current_lines)
+    return grouped
+
+
+def command_log_migrate(args: argparse.Namespace) -> int:
+    """把旧 raw/log.md 迁移到 raw/log/YYYYMMDD.md。
 
     Returns:
         进程退出码。
 
     """
     wiki = find_llmwiki(Path(args.llmwiki))
-    log = wiki / "raw" / "log.md"
-    text = read_text(log)
-    count = len(log_headings(text))
-    if count <= args.threshold and not args.force:
+    legacy_log = wiki / "raw" / "log.md"
+    if not legacy_log.exists():
         print_result(
-            {"rotated": False, "entries": count, "reason": "below-threshold"},
+            {"migrated": False, "reason": "legacy-log-missing"},
             as_json=args.json,
         )
         return 0
-    today = datetime.now(UTC).date()
-    year = str(today.year)
-    archive = wiki / "raw" / f"log-{year}.md"
+    grouped = split_legacy_log(read_text(legacy_log))
+    if not grouped:
+        today = datetime.now().date().isoformat()
+        grouped[today] = [
+            "## [00:00] update | legacy-log",
+            "",
+            "- 旧日志没有可识别条目，保留原文件归档。",
+        ]
+    written = []
+    for iso_date, lines in grouped.items():
+        compact = iso_date.replace("-", "")
+        path = ensure_daily_log(wiki, compact)
+        existing = read_text(path)
+        content = "\n".join(line.rstrip() for line in lines).strip() + "\n"
+        if content.strip() not in existing:
+            with path.open("a", encoding="utf-8", newline="\n") as handle:
+                if not existing.endswith("\n\n"):
+                    handle.write("\n")
+                handle.write(content)
+        written.append(relpath(path, wiki))
+    archive = wiki / "raw" / "_archive" / "log.md"
     if archive.exists():
-        suffix = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
-        archive = wiki / "raw" / f"log-{year}-{suffix}.md"
-    shutil.move(str(log), str(archive))
-    write_text(
-        log,
-        "# Wiki 日志\n\n> 追加式记录知识库操作。\n> 旧日志: `"
-        + relpath(archive, wiki)
-        + "`\n\n## ["
-        + today.isoformat()
-        + "] archive | 日志轮转\n\n- 已轮转旧日志。\n",
+        suffix = datetime.now().strftime("%Y%m%d%H%M%S")
+        archive = wiki / "raw" / "_archive" / f"log-{suffix}.md"
+    if not args.keep_legacy:
+        archive.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(legacy_log), str(archive))
+    append_log_entry(
+        wiki,
+        "update",
+        "日志迁移",
+        [
+            "- 已将旧 `raw/log.md` 迁移到 `raw/log/YYYYMMDD.md`。",
+            f"- 迁移文件数: {len(set(written))}",
+            f"- 旧日志归档: `{relpath(archive, wiki)}`" if not args.keep_legacy else "- 保留旧 `raw/log.md`。",
+        ],
     )
     print_result(
-        {"rotated": True, "archive": relpath(archive, wiki), "entries": count},
+        {
+            "migrated": True,
+            "files": sorted(set(written)),
+            "archive": relpath(archive, wiki) if not args.keep_legacy else None,
+        },
         as_json=args.json,
     )
     return 0
@@ -1048,22 +1383,15 @@ def append_apply_log(
     """追加 apply-plan 日志。"""
     if dry_run:
         return
-    log = root / "raw" / "log.md"
-    today = datetime.now(UTC).date()
     plan_display = (
         relpath(plan_path, root)
         if root.resolve() in plan_path.resolve().parents
         else plan_path
     )
-    lines = [
-        "",
-        f"## [{today.isoformat()}] update | apply-plan",
-        "",
+    append_log_entry(root, "update", "apply-plan", [
         f"- Plan: `{plan_display}`",
         f"- 操作数: {len(applied)}",
-    ]
-    with log.open("a", encoding="utf-8", newline="\n") as handle:
-        handle.write("\n".join(lines) + "\n")
+    ])
 
 
 def command_apply_plan(args: argparse.Namespace) -> int:
@@ -1093,6 +1421,64 @@ def command_apply_plan(args: argparse.Namespace) -> int:
         as_json=args.json,
     )
     return 0
+
+
+def command_audit_review(args: argparse.Namespace) -> int:
+    """按目标文件分组列出 audit。"""
+    wiki = find_llmwiki(Path(args.llmwiki))
+    files = audit_files(wiki, args.mode)
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    severity_order = {"error": 0, "warn": 1, "suggest": 2, "info": 3}
+    for path in files:
+        text = read_text(path)
+        doc = parse_markdown(text)
+        target = str(doc.frontmatter.get("target", "(no-target)"))
+        grouped.setdefault(target, []).append(
+            {
+                "path": relpath(path, wiki),
+                "id": doc.frontmatter.get("id", path.stem),
+                "severity": doc.frontmatter.get("severity", "info"),
+                "status": doc.frontmatter.get("status", audit_expected_status(path)),
+                "author": doc.frontmatter.get("author", ""),
+                "created": doc.frontmatter.get("created", ""),
+                "comment": audit_comment_one_line(text),
+            },
+        )
+    for entries in grouped.values():
+        entries.sort(
+            key=lambda item: (
+                severity_order.get(str(item["severity"]), 99),
+                str(item["created"]),
+            ),
+        )
+    result = {
+        "mode": args.mode,
+        "total": sum(len(entries) for entries in grouped.values()),
+        "targets": grouped,
+    }
+    print_result(result, as_json=args.json)
+    return 0
+
+
+def command_audit_anchor(args: argparse.Namespace) -> int:
+    """解析 audit 锚点到当前目标文件位置。"""
+    wiki = find_llmwiki(Path(args.llmwiki))
+    audit_path = safe_path(wiki, args.audit_file)
+    doc = parse_markdown(read_text(audit_path))
+    target = doc.frontmatter.get("target")
+    if not isinstance(target, str):
+        raise ToolError("audit 文件缺少 target。")
+    target_path = resolve_audit_target(wiki, target)
+    if not target_path:
+        raise ToolError(f"audit target 不存在: {target}")
+    resolved = resolve_audit_anchor(read_text(target_path), doc.frontmatter)
+    result = {
+        "audit": relpath(audit_path, wiki),
+        "target": relpath(target_path, wiki),
+        "anchor": resolved or {"resolved": False},
+    }
+    print_result(result, as_json=args.json)
+    return 0 if resolved else 1
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1137,16 +1523,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("log-status")
     p.add_argument("llmwiki")
-    p.add_argument("--threshold", type=int, default=500)
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=command_log_status)
 
-    p = sub.add_parser("log-rotate")
+    p = sub.add_parser("log-migrate")
     p.add_argument("llmwiki")
-    p.add_argument("--threshold", type=int, default=500)
-    p.add_argument("--force", action="store_true")
+    p.add_argument("--keep-legacy", action="store_true")
     p.add_argument("--json", action="store_true")
-    p.set_defaults(func=command_log_rotate)
+    p.set_defaults(func=command_log_migrate)
+
+    p = sub.add_parser("log-rotate", help="兼容旧命令; 等同于 log-migrate")
+    p.add_argument("llmwiki")
+    p.add_argument("--keep-legacy", action="store_true")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=command_log_migrate)
 
     p = sub.add_parser("table-profile")
     p.add_argument("file")
@@ -1167,6 +1557,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--yes", action="store_true", help="实际写入文件; 默认只 dry-run")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=command_apply_plan)
+
+    p = sub.add_parser("audit-review")
+    p.add_argument("llmwiki")
+    p.add_argument("--mode", choices=["open", "resolved", "all"], default="open")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=command_audit_review)
+
+    p = sub.add_parser("audit-anchor")
+    p.add_argument("llmwiki")
+    p.add_argument("audit_file")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=command_audit_anchor)
     return parser
 
 

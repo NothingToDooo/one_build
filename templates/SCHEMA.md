@@ -20,11 +20,11 @@
 - wiki 页面使用 YAML frontmatter。
 - 相关页面之间使用 `[[wikilinks]]`。
 - 每个新增 wiki 页面必须登记到 `raw/index.md`。
-- 每次导入、查询、整理、创建、归档或重要更新，都必须追加到 `raw/log.md`。
+- 每次导入、查询、整理、创建、归档、audit 或重要更新，都必须追加到当天 `raw/log/YYYYMMDD.md`。
 - 优先写有来源支撑的结论，不要把无来源猜测写成事实。
 - 综合多个来源时，可以在段落后使用来源标记，例如 `^[raw/articles/source.md]`。
 - 更新页面时必须更新 `updated` 日期。
-- 页面超过大约 200 行时，优先拆分成子主题，并保留双向链接。
+- 页面超过大约 200 行，或包含 3 个以上可独立复用的子问题时，优先拆分成子主题，并保留双向链接。
 - `raw/` 中的原始文件不可变；纠错、解释和综合写在 wiki 页面或 sidecar 文件中。
 
 ## Wiki 页面 frontmatter
@@ -81,6 +81,36 @@ status: raw | extracted | profiled | needs-ocr | failed
 - `extracted_from`：sidecar 来源文件。
 - `sha256`：对 frontmatter 之后的正文计算，不包含 frontmatter 自身。
 - `status`：处理状态。无法提取或需要 OCR 时必须明确标记。
+
+## Audit frontmatter
+
+agent 新建人工纠错、改进反馈或待核对项时使用：
+
+```yaml
+---
+id: YYYYMMDD-HHMMSS-abcd
+target: 概念/示例.md
+target_lines: [12, 14]
+anchor_before: "前文"
+anchor_text: "被纠错的原文"
+anchor_after: "后文"
+severity: info | suggest | warn | error
+author: user
+source: chat | manual | agent
+created: YYYY-MM-DDTHH:MM:SS+08:00
+status: open | resolved
+---
+```
+
+字段说明：
+
+- `id`：本条反馈稳定 ID，必须与文件名前缀一致。
+- `target`：相对 `llmwiki/` 的目标页面路径。
+- `target_lines`：创建反馈时的 1-based 行号范围，只作为优先定位线索。
+- `anchor_before`、`anchor_text`、`anchor_after`：原文锚点窗口，用于文本漂移后重新定位。
+- `severity`：`error` 和 `warn` 优先处理；`suggest` 是改进建议；`info` 是低优先级备注。
+- `source`：`chat` 表示来自对话确认，`manual` 表示人工手写，`agent` 表示 agent 自己留下的待核对项。
+- `status`：open 文件放在 `raw/audit/`，resolved 文件放在 `raw/audit/resolved/`。
 
 ## 文件命名
 
@@ -220,7 +250,7 @@ Summary 页面保存跨来源、跨主题或阶段性的综合总结。
 4. 把页面 frontmatter 中的 `contested` 改为 `true`。
 5. 必要时在 `contradictions` 中登记相关页面。
 6. 在正文中说明冲突点、各自来源和待确认问题。
-7. 在 `raw/log.md` 追加更新记录。
+7. 在当天 `raw/log/YYYYMMDD.md` 追加更新记录。
 
 ## raw/index.md 规则
 
@@ -230,20 +260,24 @@ Summary 页面保存跨来源、跨主题或阶段性的综合总结。
 
 当总页面超过 200 条时，创建 `raw/_meta/topic-map.md`，按主题组织入口。
 
-## raw/log.md 规则
+## raw/log/ 规则
 
-`raw/log.md` 是追加式记录，格式：
+`raw/log/` 是追加式日志目录，每天一个文件，文件名为 `YYYYMMDD.md`，格式：
 
 ```markdown
-## [YYYY-MM-DD] action | subject
+# YYYY-MM-DD
+
+## [HH:MM] action | subject
 ```
 
 常用 action：
 
 - `ingest`
+- `compile`
 - `update`
 - `query`
 - `lint`
+- `audit`
 - `create`
 - `archive`
 - `delete`
@@ -252,4 +286,15 @@ Summary 页面保存跨来源、跨主题或阶段性的综合总结。
 
 每条记录列出本次创建、修改、跳过、失败和需要用户判断的文件。
 
-超过 500 条记录时，把旧日志轮转为 `raw/log-YYYY.md`，再新建 `raw/log.md`。
+旧版 `raw/log.md` 只能作为迁移输入。迁移后旧文件归档到 `raw/_archive/`，不要继续写入。
+
+## raw/audit/ 规则
+
+`raw/audit/` 保存明确纠错、改进反馈和待核对项。普通讨论不写入。
+
+- open 反馈放在 `raw/audit/*.md`。
+- resolved 反馈放在 `raw/audit/resolved/*.md`。
+- 每条反馈必须包含 `# Comment` 和 `# Resolution` 两个一级标题。
+- 处理结果只能是 accept、partial、reject 或 defer，并写入 `# Resolution`。
+- reject 也要移动到 resolved 并说明原因；defer 可以留在 open，但必须说明等待什么证据或判断。
+- 处理 audit 后必须更新当天 `raw/log/YYYYMMDD.md`。

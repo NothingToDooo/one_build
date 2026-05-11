@@ -665,6 +665,9 @@ function Deploy-LlmWikiWorkflow {
         (Join-Path $rawDir "plans"),
         (Join-Path $rawDir "plans\applied"),
         (Join-Path $rawDir "tools"),
+        (Join-Path $rawDir "log"),
+        (Join-Path $rawDir "audit"),
+        (Join-Path $rawDir "audit\resolved"),
         (Join-Path $wikiDir "实体"),
         (Join-Path $wikiDir "概念"),
         (Join-Path $wikiDir "对比"),
@@ -679,8 +682,16 @@ function Deploy-LlmWikiWorkflow {
     Copy-Item -LiteralPath (Join-Path $templatesDir "AGENTS.md") -Destination $agentsTarget -Force
     Write-Step "已同步 Wiki 工作流规则：$agentsTarget"
 
-    foreach ($name in @("SCHEMA.md", "index.md", "log.md")) {
+    foreach ($name in @("SCHEMA.md", "index.md")) {
         Save-TemplateIfMissing -SourcePath (Join-Path $templatesDir $name) -Path (Join-Path $rawDir $name)
+    }
+    $logDir = Join-Path $rawDir "log"
+    $legacyLog = Join-Path $rawDir "log.md"
+    if (-not (Test-Path -LiteralPath $legacyLog) -and -not (Get-ChildItem -LiteralPath $logDir -Filter "*.md" -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+        $today = Get-Date
+        $logPath = Join-Path $logDir ($today.ToString("yyyyMMdd") + ".md")
+        $logText = "# " + $today.ToString("yyyy-MM-dd") + "`n`n## [" + $today.ToString("HH:mm") + "] create | 初始化 Wiki`n`n- 创建 ``raw/AGENTS.md``、``raw/SCHEMA.md``、``raw/index.md``、``raw/log/`` 和 ``raw/audit/``。`n"
+        Write-Utf8NoBom -Path $logPath -Value $logText
     }
 
     $toolsDir = Join-Path $templatesDir "tools"
@@ -789,7 +800,8 @@ description: 定位并进入用户的 LLM Wiki 或 Obsidian 知识库。适用�
    - `llmwiki/raw/AGENTS.md`
    - `llmwiki/raw/SCHEMA.md`
    - `llmwiki/raw/index.md`
-   - `llmwiki/raw/log.md`
+   - `llmwiki/raw/log/` 最近 3 到 7 天日志
+   - `llmwiki/raw/audit/` 中未处理的高严重性反馈
 4. 后续全部按照 `llmwiki/raw/AGENTS.md` 和 `llmwiki/raw/SCHEMA.md` 执行。
 
 如果用户明确指定了另一个 vault，则以用户指定路径为准，并重复读取该 vault 下的 `llmwiki/raw/` 规则文件。
